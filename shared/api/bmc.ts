@@ -42,6 +42,7 @@ export async function createBMC(input: BMCCreateInput): Promise<BMC> {
     routerId: input.routerId,
     status: 'online',
     lastSeen: new Date().toISOString(),
+    uptime: 0,
   };
   mockBMCs.unshift(bmc);
   return apiPost(bmc, 200);
