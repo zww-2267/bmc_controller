@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
-import { Card, Upload, Table, Tag, Select, Typography, Empty, Button, Space } from 'antd';
+import { useState } from 'react';
+import { Card, Upload, Table, Tag, Select, Typography, Empty, Button, Space, DatePicker, App } from 'antd';
 import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
+import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
 interface LogEntry {
   time: string;
@@ -24,6 +26,8 @@ const mockLogs: LogEntry[] = [
 export default function LogImport() {
   const [logs, setLogs] = useState<LogEntry[] | null>(null);
   const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [timeRange, setTimeRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const { message } = App.useApp();
 
   const uploadProps: UploadProps = {
     accept: '.csv,.json',
@@ -36,7 +40,7 @@ export default function LogImport() {
           if (file.name.endsWith('.csv')) {
             const lines = text.split('\n').filter((l) => l.trim());
             const parsed: LogEntry[] = lines.slice(1).map((line) => {
-              const [time, level, source, ...msg] = line.split(',');
+              const [time = '', level = '', source = '', ...msg] = line.split(',');
               return { time, level, source, message: msg.join(',').trim() };
             });
             setLogs(parsed);
@@ -44,7 +48,7 @@ export default function LogImport() {
             setLogs(JSON.parse(text));
           }
         } catch {
-          // parse errors ignored for mock stage
+          message.error('日志文件解析失败，请检查文件格式');
         }
       };
       reader.readAsText(file);
@@ -52,10 +56,21 @@ export default function LogImport() {
     },
   };
 
-  const filteredLogs =
-    logs && levelFilter !== 'all'
-      ? logs.filter((l) => l.level === levelFilter)
-      : logs;
+  const filteredLogs = (() => {
+    if (!logs) return null;
+    let result = logs;
+    if (levelFilter !== 'all') {
+      result = result.filter((l) => l.level === levelFilter);
+    }
+    if (timeRange) {
+      const [start, end] = timeRange;
+      result = result.filter((l) => {
+        const t = dayjs(l.time);
+        return t.isAfter(start) && t.isBefore(end);
+      });
+    }
+    return result;
+  })();
 
   const columns = [
     { title: '时间', dataIndex: 'time', key: 'time', width: 180 },
@@ -73,7 +88,7 @@ export default function LogImport() {
     <Card
       title={<><FileTextOutlined /> 日志分析</>}
       extra={
-        <Space>
+        <Space wrap>
           <Button onClick={() => setLogs(mockLogs)}>加载示例日志</Button>
           <Upload {...uploadProps}>
             <Button icon={<UploadOutlined />}>导入 CSV/JSON</Button>
@@ -88,6 +103,11 @@ export default function LogImport() {
               { label: 'WARN', value: 'WARN' },
               { label: 'INFO', value: 'INFO' },
             ]}
+          />
+          <RangePicker
+            allowClear
+            onChange={(dates) => setTimeRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
+            style={{ width: 260 }}
           />
         </Space>
       }

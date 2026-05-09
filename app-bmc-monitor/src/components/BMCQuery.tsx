@@ -37,7 +37,7 @@ export default function BMCQuery() {
 
   const jumpToDetail = (bmc: BMC) => {
     window.open(
-      `http://localhost:5174/?bmcId=${bmc.id}&routerId=${bmc.routerId}`,
+      `http://localhost:5174/?bmcId=${encodeURIComponent(bmc.id)}&routerId=${encodeURIComponent(bmc.routerId)}`,
       '_blank'
     );
   };
