@@ -11,17 +11,9 @@ export async function fetchAllBMCs(): Promise<BMC[]> {
   return data;
 }
 
-export async function fetchBMCById(id: string): Promise<BMC | null> {
+export async function fetchBMCById(id: string): Promise<BMC> {
   const { data } = await api.get(`/bmcs/${id}/status`);
-  return {
-    id: data.bmcId,
-    ip: '',
-    username: '',
-    routerId: '',
-    status: data.status,
-    lastSeen: '',
-    uptime: data.uptime,
-  };
+  return data;
 }
 
 export async function createBMC(input: BMCCreateInput): Promise<BMC> {

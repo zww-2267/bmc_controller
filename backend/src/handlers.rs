@@ -133,7 +133,8 @@ pub async fn get_bmc_status(
     let config = state.config.read();
     let cache = state.cache.read();
 
-    find_bmc(&config, &bmc_id).ok_or(StatusCode::NOT_FOUND)?;
+    let bmc = find_bmc(&config, &bmc_id).ok_or(StatusCode::NOT_FOUND)?;
+    let router = config.routers.iter().find(|r| r.bmcs.iter().any(|b| b.id == bmc_id));
     let status_cache = cache.statuses.get(&bmc_id);
 
     let online = status_cache.map(|s| s.online).unwrap_or(false);
@@ -142,8 +143,13 @@ pub async fn get_bmc_status(
         .unwrap_or(0);
 
     Ok(Json(serde_json::json!({
-        "bmcId": bmc_id,
+        "id": bmc_id,
+        "ip": bmc.ip,
+        "username": bmc.username,
+        "routerId": router.map(|r| r.id.clone()),
+        "routerName": router.map(|r| r.name.clone()),
         "status": if online { "online" } else { "offline" },
+        "lastSeen": chrono::Utc::now().to_rfc3339(),
         "uptime": uptime,
     })))
 }
