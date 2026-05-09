@@ -1,0 +1,2 @@
+fn(State<Arc<AppState>>, axum::extract::Path<std::string::String>, Json<PowerRequest>) -> impl Future<Output = Result<Json<Value>, axum::http::StatusCode>> {handlers::power_on}
+fn(State<Arc<AppState>>, axum::extract::Path<std::string::String>, Json<PowerRequest>) -> impl Future<Output = Result<Json<Value>, axum::http::StatusCode>> {handlers::power_on}: Handler<_, _>
