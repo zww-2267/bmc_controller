@@ -9,8 +9,8 @@ export default function RootButton() {
   const [open, setOpen] = useState(false);
   const [pwd, setPwd] = useState('');
 
-  const handleUnlock = () => {
-    if (unlock(pwd)) { message.success('已进入 Root 模式'); setOpen(false); setPwd(''); }
+  const handleUnlock = async () => {
+    if (await unlock(pwd)) { message.success('已进入 Root 模式'); setOpen(false); setPwd(''); }
     else message.error('密码错误');
   };
 

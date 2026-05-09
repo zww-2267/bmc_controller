@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '../api/client';
 
 interface RootState {
   isRoot: boolean;
-  unlock: (password: string) => boolean;
+  unlock: (password: string) => Promise<boolean>;
   lock: () => void;
 }
 
@@ -13,12 +14,18 @@ export const useRootStore = create<RootState>()(
   persist(
     (set) => ({
       isRoot: false,
-      unlock: (password: string) => {
+      unlock: async (password: string) => {
         if (password === ROOT_PASSWORD) {
           set({ isRoot: true });
           return true;
         }
-        return false;
+        try {
+          await api.post('/auth/login', { username: 'admin', password });
+          set({ isRoot: true });
+          return true;
+        } catch {
+          return false;
+        }
       },
       lock: () => set({ isRoot: false }),
     }),
