@@ -1,0 +1,5 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+#root { height: 100%; }
+.ant-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.ant-table-row { transition: background-color 0.15s ease; }

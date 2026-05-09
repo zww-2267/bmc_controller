@@ -6,7 +6,7 @@ export function useBMCList(routerId: string | null) {
     queryKey: ['bmcs', routerId],
     queryFn: () => routerId ? fetchBMCsByRouter(routerId) : fetchAllBMCs(),
     staleTime: 30_000,
-    enabled: routerId !== undefined,
+    enabled: routerId !== null,
   });
 }
 
