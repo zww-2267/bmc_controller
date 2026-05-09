@@ -32,6 +32,17 @@ import api from '@shared/api/client';
 
 const { Title } = Typography;
 
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}天`);
+  if (h > 0) parts.push(`${h}时`);
+  if (m > 0 || parts.length === 0) parts.push(`${m}分`);
+  return parts.join(' ');
+}
+
 export default function BMCDetailPage() {
   const { bmcId } = useParams<{ bmcId: string }>();
   const navigate = useNavigate();
@@ -250,6 +261,11 @@ export default function BMCDetailPage() {
           >
             <code style={{ fontSize: 16, fontWeight: 700 }}>{bmc.ip}</code>
             <BMCStatusBadge status={bmc.status} showText />
+            {bmc.status === 'online' && (
+              <span style={{ fontSize: 13, color: '#8c8c8c' }}>
+                运行 {formatUptime(bmc.uptime)}
+              </span>
+            )}
           </div>
 
           {/* 电源控制按钮 — isRoot 控制 */}
