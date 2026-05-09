@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5174, strictPort: true },
   resolve: {
-    alias: { '@shared': path.resolve(__dirname, '../shared') },
+    alias: {
+      '@shared': path.resolve(__dirname, '../shared'),
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+    },
   },
 });
