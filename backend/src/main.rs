@@ -120,16 +120,16 @@ async fn polling_loop(state: Arc<AppState>) {
                 consecutive_failures: 0,
             });
 
+            let thermal_ok = thermal_result.is_ok();
+            let power_ok = power_result.is_ok();
+
             match thermal_result {
                 Ok((temps, fans)) => {
                     sensor_cache.temperatures = temps;
                     sensor_cache.fans = fans;
-                    status_cache.consecutive_failures = 0;
-                    status_cache.online = true;
                 }
                 Err(e) => {
                     eprintln!("[{}] Thermal 轮询失败: {}", bmc_id, e);
-                    status_cache.consecutive_failures += 1;
                 }
             }
 
@@ -138,17 +138,20 @@ async fn polling_loop(state: Arc<AppState>) {
                     sensor_cache.voltages = volts;
                     sensor_cache.power_controls = pc;
                     sensor_cache.power_supplies = ps;
-                    status_cache.consecutive_failures = 0;
-                    status_cache.online = true;
                 }
                 Err(e) => {
                     eprintln!("[{}] Power 轮询失败: {}", bmc_id, e);
-                    status_cache.consecutive_failures += 1;
                 }
             }
 
-            if status_cache.consecutive_failures >= 3 {
-                status_cache.online = false;
+            if thermal_ok || power_ok {
+                status_cache.consecutive_failures = 0;
+                status_cache.online = true;
+            } else {
+                status_cache.consecutive_failures += 1;
+                if status_cache.consecutive_failures >= 3 {
+                    status_cache.online = false;
+                }
             }
 
             sensor_cache.last_updated = now_secs();

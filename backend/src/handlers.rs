@@ -149,7 +149,8 @@ pub async fn get_bmc_status(
 }
 
 fn sensor_value(name: &str, list: &[SensorReading]) -> Option<f64> {
-    list.iter().find(|s| s.name.to_uppercase().ends_with(&name.to_uppercase()))
+    let upper = name.to_uppercase();
+    list.iter().find(|s| s.name.to_uppercase().contains(&upper))
         .and_then(|s| s.value)
 }
 
@@ -363,6 +364,13 @@ pub async fn delete_bmc(
         if let Some(idx) = router.bmcs.iter().position(|b| b.id == bmc_id) {
             router.bmcs.remove(idx);
             save_config(&state.config_path, &config).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            drop(config);
+            {
+                let mut cache = state.cache.write();
+                cache.sensors.remove(&bmc_id);
+                cache.statuses.remove(&bmc_id);
+            }
+            state.sessions.write().remove(&bmc_id);
             return Ok(Json(serde_json::json!({"success": true})));
         }
     }
