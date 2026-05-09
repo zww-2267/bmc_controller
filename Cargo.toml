@@ -1,0 +1,18 @@
+[package]
+name = "bmc_demo"
+version = "0.1.0"
+edition = "2021"
+
+# 依赖项说明：
+# reqwest: HTTP 客户端，启用 json 和 native-tls(用于支持 HTTPS)
+# serde_json: 用于解析 BMC 返回的 JSON 数据
+# anyhow: 最方便的错误处理库
+# tokio: Rust 异步运行时
+# base64: 用于生成 Basic Auth 认证字符串
+[dependencies]
+reqwest = { version = "0.11", features = ["json", "native-tls"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+base64 = "0.21"
+

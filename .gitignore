@@ -1,0 +1,30 @@
+# Rust / Tauri
+src-tauri/target/
+Cargo.lock
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?
+*.suo
+
+# OS
+.DS_Store
+
+# Claude
+.claude/
+
+# Misc
+*.AppImage

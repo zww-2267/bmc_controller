@@ -1,0 +1,261 @@
+use anyhow::{Context, Result};
+use base64::Engine;
+use reqwest::{header, Client, StatusCode};
+use serde_json::json;
+use serde_json::Value;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::time::{sleep, Duration};
+
+use bmc_demo::power_control;
+
+// ==========================================
+// 👇 你的 BMC 信息 👇
+// ==========================================
+const BMC_IP: &str = "192.168.2.101";
+const BMC_USER: &str = "admin";
+const BMC_PASS: &str = "abc123..";
+// ==========================================
+
+// 【智能过滤白名单】只保留对诊断真正有意义的指标
+// 剔除了：重复的12V分支电压、VRM输入电压(VIN)等冗余项
+const CRITICAL_SUFFIXES: &[&str] = &[
+    // --- 核心温度 ---
+    "CPU0_TEMP", "CPU0_DTS", "DIMMG0_TEMP", "DIMMG1_TEMP",
+    "MB_TEMP1", "MB_TEMP2", "INLET_AIR_TEMP", "PDB_TEMP1", "PDB_TEMP2",
+    "VR_P0_TEMP", "VR_DIMMG0_TEMP", "VR_DIMMG1_TEMP",
+    // --- 外设温度 (根据你的实际插卡情况保留) ---
+    "GPU0_PROC", "GPU1_PROC", "GPU2_PROC", "GPU3_PROC",
+    "NVMeG0_TEMP", "M2_G0_AMB_TEMP", "HDD_TEMP",
+    // --- 风扇 ---
+    "SYS_FAN1", "SYS_FAN2",
+    "GPU_FAN12", "GPU_FAN34", "GPU_FAN56", "GPU_FAN78",
+    "GPU_FAN12E", "GPU_FAN56E",
+    // --- 核心电压 (CPU/内存供电) ---
+    "P0_VDDCR_CPU", "SOC_VDDCR", "SOC_VDDCR_DUAL", "P_VBAT",
+    "P0_VDDIO_ABCD", "P0_VDDIO_EFGH",
+    "P0_VPP_ABCD_SUS", "P0_VPP_EFGH_SUS",
+    "P0_VDD_18_DUAL", "P0_VDD_18", "P_1V2",
+    "VR_P0_VOUT", "VR_DIMMG0_VOUT", "VR_DIMMG1_VOUT",
+    // --- 基础电压 (只看总路) ---
+    "P_12V", "P_5V", "P_3V3", "P_5V_STBY",
+    // --- 关键电流 (12V分支只看电流，不看电压) ---
+    "12V_ATX1", "12V_ATX2", "12V_FAN", "12V_GPU0", "12V_GPU1", 
+    "12V_GPU2", "12V_GPU3", "12V_MB", "12V_PDB",
+    // --- VRM 电流 ---
+    "VR_P0_IOUT", "VR_DIMMG0_IOUT", "VR_DIMMG1_IOUT",
+    // --- 功耗 ---
+    "SYS_POWER",
+];
+
+fn is_critical(name: &str) -> bool {
+    let upper = name.to_uppercase();
+    CRITICAL_SUFFIXES.iter().any(|&s| upper.ends_with(s))
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let base_url = format!("https://{}/redfish/v1", BMC_IP);
+    let client = Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .context("构建 HTTP 客户端失败")?;
+
+    println!("[*] 正在连接 BMC {} ...", BMC_IP);
+
+    let login_url = format!("{}/SessionService/Sessions", base_url);
+    let auth_str = format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", BMC_USER, BMC_PASS))
+    );
+    let login_body = json!({"UserName": BMC_USER, "Password": BMC_PASS});
+
+    let resp = client
+        .post(&login_url)
+        .header(header::AUTHORIZATION, auth_str)
+        .json(&login_body)
+        .send()
+        .await
+        .context("登录请求失败")?;
+
+    if resp.status() != StatusCode::CREATED {
+        anyhow::bail!("❌ 登录失败: {}", resp.status());
+    }
+
+    let token = resp.headers().get("X-Auth-Token").and_then(|v| v.to_str().ok()).context("未获取到 Token")?.to_string();
+    let session_loc = resp.headers().get("Location").and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    println!("[✓] 登录成功！");
+
+    struct SessionGuard(Client, String, String);
+    impl Drop for SessionGuard {
+        fn drop(&mut self) {
+            let c = self.0.clone(); let t = self.1.clone(); let u = self.2.clone();
+            tokio::spawn(async move { let _ = c.delete(&u).header("X-Auth-Token", &t).send().await; });
+        }
+    }
+    let logout_url = if session_loc.starts_with('/') { format!("https://{}{}", BMC_IP, session_loc) } else { session_loc };
+    let _guard = SessionGuard(client.clone(), token.clone(), logout_url);
+
+    let chassis_url = format!("{}/Chassis", base_url);
+    let chassis_root: Value = client.get(&chassis_url).header("X-Auth-Token", &token).send().await?.json().await?;
+    let chassis_path = chassis_root.get("Members").and_then(|m| m.as_array()).and_then(|arr| arr.get(0)).and_then(|m| m.get("@odata.id")).and_then(|v| v.as_str()).context("未找到 Chassis 路径")?;
+    
+    let full_chassis_url = format!("https://{}{}", BMC_IP, chassis_path);
+    let thermal_url = format!("{}/Thermal", full_chassis_url);
+    let power_url = format!("{}/Power", full_chassis_url);
+
+    println!("[*] 开始每 10 秒定时采集... (按 Ctrl+C 退出)\n");
+    let mut count = 0u64;
+
+    loop {
+        count += 1;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        print!("\x1B[2J\x1B[H"); // 清屏
+
+        println!("==================================================");
+        println!(" BMC 实时监控面板 | 第 {} 次 | 时间: {}", count, timestamp);
+        println!("==================================================\n");
+
+        if let Err(e) = get_thermal_and_fans(&client, &token, &thermal_url).await {
+            println!("⚠ 获取温控数据失败: {}", e);
+        }
+
+        if let Err(e) = get_power_voltages(&client, &token, &power_url).await {
+            println!("⚠ 获取电源/传感器数据失败: {}", e);
+        }
+
+        sleep(Duration::from_secs(10)).await;
+    }
+}
+
+// ==========================================
+// 1. 温度 + 风扇（/Thermal）
+// ==========================================
+async fn get_thermal_and_fans(client: &Client, token: &str, url: &str) -> Result<()> {
+    let body: Value = client.get(url).header("X-Auth-Token", token).send().await?.json().await?;
+    let mut core_temps = Vec::new();
+    let mut env_temps = Vec::new();
+
+    if let Some(temps) = body.get("Temperatures").and_then(|v| v.as_array()) {
+        for item in temps {
+            let name = item.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown");
+            let upper_name = name.to_uppercase();
+            let status = item.get("Status").and_then(|s| s.get("Health")).and_then(|v| v.as_str()).unwrap_or("N/A");
+            if status == "Absent" || !is_critical(name) { continue; }
+
+            let reading = item.get("ReadingCelsius").or_else(|| item.get("Reading")).and_then(|v| v.as_f64());
+            let val_str = match reading { Some(v) => format!("{:.1} °C", v), None => "N/A".to_string() };
+
+            if upper_name.contains("CPU") || upper_name.contains("VR_") || upper_name.contains("DIMM") || upper_name.contains("MB_") || upper_name.contains("INLET") || upper_name.contains("PDB") {
+                core_temps.push(format!("  {:<20} : {:>8} [{}]", name, val_str, status));
+            } else {
+                env_temps.push(format!("  {:<20} : {:>8} [{}]", name, val_str, status));
+            }
+        }
+    }
+
+    let mut fans = Vec::new();
+    if let Some(fan_list) = body.get("Fans").and_then(|v| v.as_array()) {
+        for item in fan_list {
+            let name = item.get("Name").or(item.get("FanName")).and_then(|v| v.as_str()).unwrap_or("Unknown");
+            let status = item.get("Status").and_then(|s| s.get("Health")).and_then(|v| v.as_str()).unwrap_or("N/A");
+            if status == "Absent" || !is_critical(name) { continue; }
+
+            let reading = item.get("Reading").and_then(|v| v.as_f64());
+            let val_str = match reading { Some(v) => format!("{:.0} RPM", v), None => "N/A".to_string() };
+            fans.push(format!("  {:<20} : {:>8} [{}]", name, val_str, status));
+        }
+    }
+
+    println!("========== [ 核心温度 (CPU/主板/VRM) ] ==========");
+    if core_temps.is_empty() { println!("  (无数据)") } else { core_temps.iter().for_each(|s| println!("{}", s)); }
+    println!("\n========== [ 外设温度 (GPU/存储) ] ==========");
+    if env_temps.is_empty() { println!("  (无数据)") } else { env_temps.iter().for_each(|s| println!("{}", s)); }
+    println!("\n========== [ 风扇转速 ] ==========");
+    if fans.is_empty() { println!("  (无数据)") } else { fans.iter().for_each(|s| println!("{}", s)); }
+
+    Ok(())
+}
+
+// ==========================================
+// 2. 电压/电流/功耗（/Power 中的 Voltages 池）
+// ==========================================
+async fn get_power_voltages(client: &Client, token: &str, url: &str) -> Result<()> {
+    let body: Value = client.get(url).header("X-Auth-Token", token).send().await?.json().await?;
+    
+    let mut core_volts = Vec::new();
+    let mut base_volts = Vec::new();
+    let mut currents = Vec::new();
+    let mut sys_power = Vec::new();
+
+    // 遍历那个“大杂烩” Voltages 数组
+    if let Some(voltages) = body.get("Voltages").and_then(|v| v.as_array()) {
+        for v in voltages {
+            let name = v.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown");
+            let upper_name = name.to_uppercase();
+            
+            // 过滤白名单
+            if !is_critical(name) { continue; }
+            // 过滤掉未启用的
+            let state = v.get("Status").and_then(|s| s.get("State")).and_then(|v| v.as_str()).unwrap_or("");
+            if state.eq_ignore_ascii_case("disabled") { continue; }
+
+            let health = v.get("Status").and_then(|s| s.get("Health")).and_then(|v| v.as_str()).unwrap_or("N/A");
+            
+            // ⚠️ 关键防坑：不管 BMC 把数值放在 ReadingVolts 还是 Reading，也不管单位写的是什么，统一先读出来
+            let raw_val = v.get("ReadingVolts")
+                .or_else(|| v.get("ReadingAmps"))
+                .or_else(|| v.get("ReadingWatts"))
+                .or_else(|| v.get("Reading"))
+                .and_then(|val| val.as_f64());
+
+            let units = v.get("ReadingUnits").and_then(|u| u.as_str()).unwrap_or("").to_uppercase();
+            
+            // 如果连数值都没有，跳过
+            let val_f64 = match raw_val {
+                Some(v) => v,
+                None => continue,
+            };
+
+            // --- 根据单位或名字关键字，强制分类 ---
+            if units.contains("WATT") || upper_name.contains("SYS_POWER") {
+                sys_power.push(format!("  {:<20} : {:>8.1} W  [{}]", name, val_f64, health));
+            } 
+            else if units.contains("AMP") || upper_name.contains("IOUT") {
+                currents.push(format!("  {:<20} : {:>8.2} A  [{}]", name, val_f64, health));
+            } 
+            else {
+                // 剩下的当成电压处理
+                let val_str = format!("{:.3} V", val_f64);
+                // 细分：基础供电 vs 核心供电
+                if upper_name.starts_with("P_12") || upper_name.starts_with("P_5") || upper_name.starts_with("P_3") {
+                    base_volts.push(format!("  {:<20} : {:>8}  [{}]", name, val_str, health));
+                } else {
+                    core_volts.push(format!("  {:<20} : {:>8}  [{}]", name, val_str, health));
+                }
+            }
+        }
+    }
+
+    println!("\n========== [ 核心电压 (CPU/内存 VRM) ] ==========");
+    if core_volts.is_empty() { println!("  (无数据)") } else { core_volts.iter().for_each(|s| println!("{}", s)); }
+    
+    println!("\n========== [ 基础电压 (12V/5V/3.3V) ] ==========");
+    if base_volts.is_empty() { println!("  (无数据)") } else { base_volts.iter().for_each(|s| println!("{}", s)); }
+    
+    println!("\n========== [ 关键分支电流 (防过载) ] ==========");
+    if currents.is_empty() { println!("  (无数据)") } else { currents.iter().for_each(|s| println!("{}", s)); }
+    
+    println!("\n========== [ 整机功耗 ] ==========");
+    if sys_power.is_empty() { 
+        // 如果 Voltages 里没找到，尝试从标准的 PowerControl 里找
+        if let Some(pc) = body.get("PowerControl").and_then(|v| v.as_array()).and_then(|a| a.get(0)) {
+            let w = pc.get("PowerConsumedWatts").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            println!("  SYS_POWER            : {:>8.1} W", w);
+        } else {
+            println!("  (无数据)");
+        }
+    } else { sys_power.iter().for_each(|s| println!("{}", s)); }
+
+    Ok(())
+}
+
