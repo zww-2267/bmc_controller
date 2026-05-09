@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Card, Select, Input, Button, Descriptions, Tag, Empty, Space } from 'antd';
+import { Card, Select, Input, Button, Descriptions, Tag, Empty, Space, Table } from 'antd';
 import { SearchOutlined, ExportOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { useRouterList } from '@shared/hooks/useRouterList';
 import { useBMCList } from '@shared/hooks/useBMCList';
 import type { BMC } from '@shared/types';
@@ -26,14 +27,13 @@ export default function BMCQuery() {
   const { data: routers } = useRouterList();
   const [selectedRouterId, setSelectedRouterId] = useState<string>();
   const [searchIp, setSearchIp] = useState('');
-  const { data: bmcs } = useBMCList(selectedRouterId ?? null);
+  const { data: bmcs, isLoading } = useBMCList(selectedRouterId ?? null);
 
   const filteredBMCs = useMemo(() => {
-    if (!bmcs || !searchIp) return [];
+    if (!bmcs) return [];
+    if (!searchIp) return bmcs;
     return bmcs.filter((b) => b.ip.includes(searchIp));
   }, [bmcs, searchIp]);
-
-  const selectedBMC = filteredBMCs.length === 1 ? filteredBMCs[0] : null;
 
   const jumpToDetail = (bmc: BMC) => {
     window.open(
@@ -41,6 +41,30 @@ export default function BMCQuery() {
       '_blank'
     );
   };
+
+  const columns: ColumnsType<BMC> = [
+    {
+      title: 'BMC IP', dataIndex: 'ip', key: 'ip', width: 160,
+      render: (ip: string) => <code>{ip}</code>,
+    },
+    { title: '管理员', dataIndex: 'username', key: 'username', width: 100 },
+    {
+      title: '状态', dataIndex: 'status', key: 'status', width: 100,
+      render: (status: string) => <BMCStatusTag status={status} />,
+    },
+    {
+      title: '已运行时间', dataIndex: 'uptime', key: 'uptime', width: 120,
+      render: (t: number, record: BMC) => record.status === 'online' ? formatUptime(t) : '-',
+    },
+    {
+      title: '操作', key: 'actions', width: 100,
+      render: (_: unknown, record: BMC) => (
+        <Button size="small" icon={<ExportOutlined />} onClick={() => jumpToDetail(record)}>
+          查看详情
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <Card title={<><SearchOutlined /> BMC 设备查询</>}>
@@ -53,51 +77,30 @@ export default function BMCQuery() {
             allowClear
           />
           <Input
-            placeholder="输入 BMC IP" style={{ width: 200 }}
+            placeholder="筛选 BMC IP" style={{ width: 200 }}
             value={searchIp} onChange={(e) => setSearchIp(e.target.value)}
+            disabled={!selectedRouterId}
+            allowClear
           />
         </Space>
 
-        {filteredBMCs.length > 1 && (
-          <div>
-            {filteredBMCs.map((b) => (
-              <Card key={b.id} size="small" style={{ marginBottom: 8 }}>
-                <Space>
-                  <code>{b.ip}</code>
-                  <BMCStatusTag status={b.status} />
-                  <Button size="small" icon={<ExportOutlined />} onClick={() => jumpToDetail(b)}>
-                    查看详情
-                  </Button>
-                </Space>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {selectedBMC && (
-          <Card size="small" title="查询结果">
-            <Descriptions column={3} size="small">
-              <Descriptions.Item label="IP">{selectedBMC.ip}</Descriptions.Item>
-              <Descriptions.Item label="管理员">{selectedBMC.username}</Descriptions.Item>
-              <Descriptions.Item label="路由器">{selectedBMC.routerName}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <BMCStatusTag status={selectedBMC.status} />
-              </Descriptions.Item>
-              <Descriptions.Item label="已运行时间">
-                {selectedBMC.status === 'online' ? formatUptime(selectedBMC.uptime) : '-'}
-              </Descriptions.Item>
-            </Descriptions>
-            <Button
-              type="primary" icon={<ExportOutlined />} style={{ marginTop: 12 }}
-              onClick={() => jumpToDetail(selectedBMC)}
-            >
-              跳转到 BMC 详情
-            </Button>
-          </Card>
-        )}
-
-        {!selectedRouterId && !searchIp && (
-          <Empty description="选择路由器并输入 IP 搜索 BMC 设备" />
+        {!selectedRouterId ? (
+          <Empty description="请选择路由器以查看 BMC 设备列表" />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={filteredBMCs}
+            rowKey="id"
+            loading={isLoading}
+            size="small"
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            }}
+            locale={{ emptyText: <Empty description="无匹配的 BMC 设备" /> }}
+          />
         )}
       </Space>
     </Card>
