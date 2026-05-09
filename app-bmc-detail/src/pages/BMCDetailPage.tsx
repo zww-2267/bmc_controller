@@ -28,6 +28,7 @@ import BMCStatusBadge from '../components/BMCStatusBadge';
 import SensorGroup from '../components/SensorGroup';
 import RootButton from '../components/RootButton';
 import type { SensorData } from '@shared/types';
+import api from '@shared/api/client';
 
 const { Title } = Typography;
 
@@ -39,6 +40,33 @@ export default function BMCDetailPage() {
   const { data: sensors, isLoading: sensorsLoading, refetch } = useBMCSensors(bmcId);
   const { message } = App.useApp();
   const { token } = theme.useToken();
+
+  const handlePowerOn = async () => {
+    try {
+      await api.post(`/bmcs/${bmcId}/power/on`, { rootPassword: '123456' });
+      message.success(`已向 ${bmc!.ip} 发送开机指令`);
+    } catch {
+      message.error('开机指令发送失败');
+    }
+  };
+
+  const handlePowerOff = async () => {
+    try {
+      await api.post(`/bmcs/${bmcId}/power/off`, { rootPassword: '123456' });
+      message.success(`已向 ${bmc!.ip} 发送关机指令`);
+    } catch {
+      message.error('关机指令发送失败');
+    }
+  };
+
+  const handlePowerRestart = async () => {
+    try {
+      await api.post(`/bmcs/${bmcId}/power/restart`, { rootPassword: '123456' });
+      message.success(`已向 ${bmc!.ip} 发送重启指令`);
+    } catch {
+      message.error('重启指令发送失败');
+    }
+  };
 
   if (bmcLoading) {
     return (
@@ -230,7 +258,7 @@ export default function BMCDetailPage() {
               type="primary"
               icon={<PlayCircleOutlined />}
               disabled={!isRoot}
-              onClick={() => message.success(`已向 ${bmc.ip} 发送开机指令`)}
+              onClick={handlePowerOn}
             >
               开机
             </Button>
@@ -238,9 +266,16 @@ export default function BMCDetailPage() {
               danger
               icon={<PoweroffOutlined />}
               disabled={!isRoot}
-              onClick={() => message.warning(`已向 ${bmc.ip} 发送关机指令`)}
+              onClick={handlePowerOff}
             >
               关机
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              disabled={!isRoot}
+              onClick={handlePowerRestart}
+            >
+              重启
             </Button>
           </Space>
 
