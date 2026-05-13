@@ -21,6 +21,7 @@ import {
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBMCById } from '@shared/hooks/useBMCList';
 import { useBMCSensors } from '@shared/hooks/useBMCSensors';
 import { useRootStore } from '@shared/stores/rootStore';
@@ -49,34 +50,66 @@ export default function BMCDetailPage() {
   const isRoot = useRootStore((s) => s.isRoot);
   const { data: bmc, isLoading: bmcLoading, error: bmcError } = useBMCById(bmcId);
   const { data: sensors, isLoading: sensorsLoading, refetch } = useBMCSensors(bmcId);
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { token } = theme.useToken();
+  const qc = useQueryClient();
 
-  const handlePowerOn = async () => {
-    try {
-      await api.post(`/bmcs/${bmcId}/power/on`, { rootPassword: '123456' });
-      message.success(`已向 ${bmc!.ip} 发送开机指令`);
-    } catch {
-      message.error('开机指令发送失败');
-    }
+  const handlePowerOn = () => {
+    modal.confirm({
+      title: '确认开机',
+      content: `确定要向 ${bmc!.ip} 发送开机指令吗？`,
+      okText: '确认开机',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await api.post(`/bmcs/${bmcId}/power/on`, { rootPassword: '123456' });
+          message.success(`已向 ${bmc!.ip} 发送开机指令`);
+          qc.invalidateQueries({ queryKey: ['bmc', bmcId] });
+          qc.invalidateQueries({ queryKey: ['sensors', bmcId] });
+        } catch {
+          message.error('开机指令发送失败');
+        }
+      },
+    });
   };
 
-  const handlePowerOff = async () => {
-    try {
-      await api.post(`/bmcs/${bmcId}/power/off`, { rootPassword: '123456' });
-      message.success(`已向 ${bmc!.ip} 发送关机指令`);
-    } catch {
-      message.error('关机指令发送失败');
-    }
+  const handlePowerOff = () => {
+    modal.confirm({
+      title: '确认关机',
+      content: `确定要向 ${bmc!.ip} 发送关机指令吗？`,
+      okText: '确认关机',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await api.post(`/bmcs/${bmcId}/power/off`, { rootPassword: '123456' });
+          message.success(`已向 ${bmc!.ip} 发送关机指令`);
+          qc.invalidateQueries({ queryKey: ['bmc', bmcId] });
+          qc.invalidateQueries({ queryKey: ['sensors', bmcId] });
+        } catch {
+          message.error('关机指令发送失败');
+        }
+      },
+    });
   };
 
-  const handlePowerRestart = async () => {
-    try {
-      await api.post(`/bmcs/${bmcId}/power/restart`, { rootPassword: '123456' });
-      message.success(`已向 ${bmc!.ip} 发送重启指令`);
-    } catch {
-      message.error('重启指令发送失败');
-    }
+  const handlePowerRestart = () => {
+    modal.confirm({
+      title: '确认重启',
+      content: `确定要向 ${bmc!.ip} 发送重启指令吗？`,
+      okText: '确认重启',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await api.post(`/bmcs/${bmcId}/power/restart`, { rootPassword: '123456' });
+          message.success(`已向 ${bmc!.ip} 发送重启指令`);
+          qc.invalidateQueries({ queryKey: ['bmc', bmcId] });
+          qc.invalidateQueries({ queryKey: ['sensors', bmcId] });
+        } catch {
+          message.error('重启指令发送失败');
+        }
+      },
+    });
   };
 
   if (bmcLoading) {

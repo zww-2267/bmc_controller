@@ -5,7 +5,8 @@ export function useBMCList(routerId: string | null) {
   return useQuery({
     queryKey: ['bmcs', routerId],
     queryFn: () => routerId ? fetchBMCsByRouter(routerId) : fetchAllBMCs(),
-    staleTime: 30_000,
+    staleTime: 4_000,
+    refetchInterval: 5_000,
     enabled: routerId !== null,
   });
 }
@@ -15,7 +16,8 @@ export function useBMCById(id: string | undefined) {
     queryKey: ['bmc', id],
     queryFn: () => fetchBMCById(id!),
     enabled: !!id,
-    staleTime: 30_000,
+    staleTime: 4_000,
+    refetchInterval: 5_000,
   });
 }
 

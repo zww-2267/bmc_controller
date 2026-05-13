@@ -57,9 +57,11 @@ impl BmcSensorCache {
 
 #[derive(Debug, Clone)]
 pub struct BmcStatusCache {
-    pub online: bool,
-    pub first_seen: u64,
+    pub bmc_reachable: bool,        // BMC Redfish session 是否正常
     pub consecutive_failures: u32,
+    pub host_power_on: bool,         // 主机真实电源状态 (来自 Systems/Self PowerState)
+    pub host_power_on_since: u64,    // 主机上次开机的时间戳 (now_secs)
+    pub host_uptime_accumulated: u64, // 关机时累计的运行时间
 }
 
 #[derive(Debug, Clone)]

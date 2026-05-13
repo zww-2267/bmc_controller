@@ -255,6 +255,25 @@ pub async fn execute_power_action(
     }
 }
 
-pub async fn delete_session(client: &Client, token: &str, session_loc: &str) {
-    let _ = client.delete(session_loc).header("X-Auth-Token", token).send().await;
+/// 获取主机电源状态和运行时间 (from /redfish/v1/Systems/{id})
+pub async fn poll_system(session: &RedfishSession, bmc_ip: &str) -> Result<(String, Option<f64>)> {
+    let system_url = format!("https://{}{}", bmc_ip, session.system_path);
+
+    let body: Value = session.client
+        .get(&system_url)
+        .header("X-Auth-Token", &session.token)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    let power_state = body.get("PowerState")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Off")
+        .to_string();
+
+    let uptime_seconds = body.get("UptimeSeconds")
+        .and_then(|v| v.as_f64());
+
+    Ok((power_state, uptime_seconds))
 }

@@ -107,17 +107,23 @@ pub async fn get_bmcs(
 
     let bmcs: Vec<BmcListItem> = router.bmcs.iter().map(|b| {
         let status_cache = cache.statuses.get(&b.id);
-        let online = status_cache.map(|s| s.online).unwrap_or(false);
-        let uptime = status_cache
-            .and_then(|s| if s.online { Some(now_secs().saturating_sub(s.first_seen)) } else { Some(0) })
-            .unwrap_or(0);
+        let host_on = status_cache.map(|s| s.host_power_on).unwrap_or(false);
+        let uptime = status_cache.map(|s| {
+            if s.host_power_on {
+                s.host_uptime_accumulated.saturating_add(now_secs().saturating_sub(s.host_power_on_since))
+            } else {
+                s.host_uptime_accumulated
+            }
+        }).unwrap_or(0);
+        let bmc_reachable = status_cache.map(|s| s.bmc_reachable).unwrap_or(false);
+        let status = if host_on { "online" } else if bmc_reachable { "offline" } else { "error" };
         BmcListItem {
             id: b.id.clone(),
             ip: b.ip.clone(),
             username: b.username.clone(),
             router_id: router.id.clone(),
             router_name: router.name.clone(),
-            status: if online { "online".to_string() } else { "offline".to_string() },
+            status: status.to_string(),
             last_seen: chrono::Utc::now().to_rfc3339(),
             uptime,
         }
@@ -137,10 +143,16 @@ pub async fn get_bmc_status(
     let router = config.routers.iter().find(|r| r.bmcs.iter().any(|b| b.id == bmc_id));
     let status_cache = cache.statuses.get(&bmc_id);
 
-    let online = status_cache.map(|s| s.online).unwrap_or(false);
-    let uptime = status_cache
-        .and_then(|s| if s.online { Some(now_secs().saturating_sub(s.first_seen)) } else { Some(0) })
-        .unwrap_or(0);
+    let host_on = status_cache.map(|s| s.host_power_on).unwrap_or(false);
+    let bmc_reachable = status_cache.map(|s| s.bmc_reachable).unwrap_or(false);
+    let uptime = status_cache.map(|s| {
+        if s.host_power_on {
+            s.host_uptime_accumulated.saturating_add(now_secs().saturating_sub(s.host_power_on_since))
+        } else {
+            s.host_uptime_accumulated
+        }
+    }).unwrap_or(0);
+    let status = if host_on { "online" } else if bmc_reachable { "offline" } else { "error" };
 
     Ok(Json(serde_json::json!({
         "id": bmc_id,
@@ -148,7 +160,7 @@ pub async fn get_bmc_status(
         "username": bmc.username,
         "routerId": router.map(|r| r.id.clone()),
         "routerName": router.map(|r| r.name.clone()),
-        "status": if online { "online" } else { "offline" },
+        "status": status,
         "lastSeen": chrono::Utc::now().to_rfc3339(),
         "uptime": uptime,
     })))

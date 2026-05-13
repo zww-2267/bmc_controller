@@ -87,9 +87,11 @@ async fn polling_loop(state: Arc<AppState>) {
                         let mut cache = state.cache.write();
                         cache.sensors.entry(bmc_id.clone()).or_insert_with(BmcSensorCache::new);
                         cache.statuses.entry(bmc_id.clone()).or_insert_with(|| BmcStatusCache {
-                            online: true,
-                            first_seen: now_secs(),
+                            bmc_reachable: true,
                             consecutive_failures: 0,
+                            host_power_on: false,
+                            host_power_on_since: 0,
+                            host_uptime_accumulated: 0,
                         });
                     }
                     Err(e) => {
@@ -110,14 +112,17 @@ async fn polling_loop(state: Arc<AppState>) {
 
             let thermal_result = redfish::poll_thermal(&session).await;
             let power_result = redfish::poll_power(&session).await;
+            let system_result = redfish::poll_system(&session, ip).await;
 
             let mut cache = state.cache.write();
             let SensorCache { sensors, statuses } = &mut *cache;
             let sensor_cache = sensors.entry(bmc_id.clone()).or_insert_with(BmcSensorCache::new);
             let status_cache = statuses.entry(bmc_id.clone()).or_insert_with(|| BmcStatusCache {
-                online: true,
-                first_seen: now_secs(),
+                bmc_reachable: true,
                 consecutive_failures: 0,
+                host_power_on: false,
+                host_power_on_since: 0,
+                host_uptime_accumulated: 0,
             });
 
             let thermal_ok = thermal_result.is_ok();
@@ -144,13 +149,30 @@ async fn polling_loop(state: Arc<AppState>) {
                 }
             }
 
+            // 更新主机电源状态 (来自 Redfish Systems/Self PowerState)
+            if let Ok((power_state, _uptime_secs)) = system_result {
+                let was_on = status_cache.host_power_on;
+                let now_on = power_state == "On";
+
+                if now_on && !was_on {
+                    // 主机刚开机
+                    status_cache.host_power_on_since = now_secs();
+                } else if !now_on && was_on {
+                    // 主机刚关机：累计运行时间
+                    let session_uptime = now_secs().saturating_sub(status_cache.host_power_on_since);
+                    status_cache.host_uptime_accumulated = status_cache.host_uptime_accumulated.saturating_add(session_uptime);
+                }
+                status_cache.host_power_on = now_on;
+            }
+
+            // BMC 连通性状态
             if thermal_ok || power_ok {
                 status_cache.consecutive_failures = 0;
-                status_cache.online = true;
+                status_cache.bmc_reachable = true;
             } else {
                 status_cache.consecutive_failures += 1;
                 if status_cache.consecutive_failures >= 3 {
-                    status_cache.online = false;
+                    status_cache.bmc_reachable = false;
                 }
             }
 
