@@ -1,5 +1,7 @@
 # Rust / Tauri
 src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/bmc-backend*
 Cargo.lock
 
 # Node
@@ -28,3 +30,5 @@ npm-debug.log*
 
 # Misc
 *.AppImage
+*.tsbuildinfo
+release/
