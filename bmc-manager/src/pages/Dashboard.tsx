@@ -25,7 +25,7 @@ import {
 import ReactECharts from 'echarts-for-react';
 import { useSensorSummary, useCpuTempTrend } from '../hooks/useSensorSummary';
 import { useRouterList } from '../hooks/useRouterList';
-import BMCStatusBadge from '../components/BMCStatusBadge';
+import BMCStatusBadge from '@shared/components/BMCStatusBadge';
 import type { SensorSummary } from '../types';
 
 const { Title, Text } = Typography;
@@ -65,7 +65,7 @@ export default function Dashboard() {
       offline: summaries.filter((s) => s.status === 'offline').length,
       error: summaries.filter((s) => s.status === 'error').length,
       anomalous: summaries.filter(
-        (s) => s.hasError || (s.status === 'online' && s.cpu0Temp !== null && s.cpu0Temp > 85)
+        (s) => s.health.level !== 'normal' || s.status === 'error'
       ).length,
     };
   }, [summaries]);
@@ -76,9 +76,8 @@ export default function Dashboard() {
     return summaries
       .filter(
         (s) =>
-          s.hasError ||
-          s.status === 'error' ||
-          (s.status === 'online' && s.cpu0Temp !== null && s.cpu0Temp > 80)
+          s.health.level !== 'normal' ||
+          s.status === 'error'
       )
       .slice(0, 20);
   }, [summaries]);
@@ -177,12 +176,15 @@ export default function Dashboard() {
       render: (v: number) => `${v} W`,
     },
     {
-      title: '异常标记',
-      dataIndex: 'hasError',
-      key: 'hasError',
-      width: 80,
-      render: (v: boolean) =>
-        v ? <Tag color="error">异常</Tag> : <Tag color="success">正常</Tag>,
+      title: '健康状态',
+      dataIndex: 'health',
+      key: 'health',
+      width: 120,
+      render: (v: { level: string; reasons: string[] }) => {
+        if (v.level === 'normal') return <Tag color="success">正常</Tag>;
+        if (v.level === 'warning') return <Tag color="warning">警告</Tag>;
+        return <Tag color="error">严重</Tag>;
+      },
     },
   ];
 

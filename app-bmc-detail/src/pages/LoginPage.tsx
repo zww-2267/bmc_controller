@@ -4,6 +4,7 @@ import { Card, Select, Input, Button, Typography, App } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useRouterList } from '@shared/hooks/useRouterList';
 import { useBMCList } from '@shared/hooks/useBMCList';
+import { useAuthStore } from '@shared/stores/authStore';
 
 const { Title } = Typography;
 
@@ -30,6 +31,7 @@ export default function LoginPage() {
       message.error('请选择 BMC 设备');
       return;
     }
+    useAuthStore.getState().login(username, password);
     navigate(`/bmc/${bmcId}`);
   };
 

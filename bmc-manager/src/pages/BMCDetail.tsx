@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Typography,
   Row,
   Col,
   Card,
@@ -22,9 +21,8 @@ import {
 import ReactECharts from 'echarts-for-react';
 import { useBMCById } from '../hooks/useBMCList';
 import { useBMCSensors } from '../hooks/useBMCSensors';
-import BMCStatusBadge from '../components/BMCStatusBadge';
+import BMCStatusBadge from '@shared/components/BMCStatusBadge';
 import SensorGroup from '../components/SensorGroup';
-const { Title } = Typography;
 
 export default function BMCDetail() {
   const { bmcId } = useParams<{ bmcId: string }>();
@@ -59,46 +57,46 @@ export default function BMCDetail() {
   // 构建传感器分组数据
   const coreTempSensors = sensors
     ? [
-        { label: 'CPU0 Temp', value: sensors.coreTemp.cpu0Temp, max: 100, warningThreshold: 80, criticalThreshold: 95 },
-        { label: 'DIMMG0 Temp', value: sensors.coreTemp.dimmG0Temp, max: 85, warningThreshold: 70, criticalThreshold: 82 },
-        { label: 'DIMMG1 Temp', value: sensors.coreTemp.dimmG1Temp, max: 85, warningThreshold: 70, criticalThreshold: 82 },
-        { label: 'MB Temp1', value: sensors.coreTemp.mbTemp1, max: 70, warningThreshold: 55 },
-        { label: 'MB Temp2', value: sensors.coreTemp.mbTemp2, max: 70, warningThreshold: 55 },
-        { label: 'Inlet Air', value: sensors.coreTemp.inletAirTemp, max: 50, warningThreshold: 35 },
-        { label: 'CPU0 DTS', value: sensors.coreTemp.cpu0Dts, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'VR P0', value: sensors.coreTemp.vrP0Temp, max: 100, warningThreshold: 85 },
-        { label: 'VR DIMMG0', value: sensors.coreTemp.vrDimmG0Temp, max: 85, warningThreshold: 75 },
-        { label: 'VR DIMMG1', value: sensors.coreTemp.vrDimmG1Temp, max: 85, warningThreshold: 75 },
-        { label: 'M2 G0 AMB', value: sensors.coreTemp.m2G0AmbTemp, max: 75, warningThreshold: 60 },
+        { label: 'CPU0 Temp', value: sensors.coreTemp.cpu0Temp.value, health: sensors.coreTemp.cpu0Temp.health, max: 100, warningThreshold: 80, criticalThreshold: 95 },
+        { label: 'DIMMG0 Temp', value: sensors.coreTemp.dimmG0Temp.value, health: sensors.coreTemp.dimmG0Temp.health, max: 85, warningThreshold: 70, criticalThreshold: 82 },
+        { label: 'DIMMG1 Temp', value: sensors.coreTemp.dimmG1Temp.value, health: sensors.coreTemp.dimmG1Temp.health, max: 85, warningThreshold: 70, criticalThreshold: 82 },
+        { label: 'MB Temp1', value: sensors.coreTemp.mbTemp1.value, health: sensors.coreTemp.mbTemp1.health, max: 70, warningThreshold: 55 },
+        { label: 'MB Temp2', value: sensors.coreTemp.mbTemp2.value, health: sensors.coreTemp.mbTemp2.health, max: 70, warningThreshold: 55 },
+        { label: 'Inlet Air', value: sensors.coreTemp.inletAirTemp.value, health: sensors.coreTemp.inletAirTemp.health, max: 50, warningThreshold: 35 },
+        { label: 'CPU0 DTS', value: sensors.coreTemp.cpu0Dts.value, health: sensors.coreTemp.cpu0Dts.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'VR P0', value: sensors.coreTemp.vrP0Temp.value, health: sensors.coreTemp.vrP0Temp.health, max: 100, warningThreshold: 85 },
+        { label: 'VR DIMMG0', value: sensors.coreTemp.vrDimmG0Temp.value, health: sensors.coreTemp.vrDimmG0Temp.health, max: 85, warningThreshold: 75 },
+        { label: 'VR DIMMG1', value: sensors.coreTemp.vrDimmG1Temp.value, health: sensors.coreTemp.vrDimmG1Temp.health, max: 85, warningThreshold: 75 },
+        { label: 'M2 G0 AMB', value: sensors.coreTemp.m2G0AmbTemp.value, health: sensors.coreTemp.m2G0AmbTemp.health, max: 75, warningThreshold: 60 },
       ]
     : [];
 
   const gpuTempSensors = sensors
     ? [
-        { label: 'GPU0 Proc', value: sensors.gpuTemp.gpu0Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU1 Proc', value: sensors.gpuTemp.gpu1Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU2 Proc', value: sensors.gpuTemp.gpu2Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU3 Proc', value: sensors.gpuTemp.gpu3Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU4 Proc', value: sensors.gpuTemp.gpu4Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU5 Proc', value: sensors.gpuTemp.gpu5Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU6 Proc', value: sensors.gpuTemp.gpu6Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'GPU7 Proc', value: sensors.gpuTemp.gpu7Proc, max: 100, warningThreshold: 85, criticalThreshold: 95 },
-        { label: 'HDD Temp', value: sensors.gpuTemp.hddTemp, max: 60, warningThreshold: 50 },
-        { label: 'PDB Temp1', value: sensors.gpuTemp.pdbTemp1, max: 60, warningThreshold: 50 },
-        { label: 'PDB Temp2', value: sensors.gpuTemp.pdbTemp2, max: 60, warningThreshold: 50 },
+        { label: 'GPU0 Proc', value: sensors.gpuTemp.gpu0Proc.value, health: sensors.gpuTemp.gpu0Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU1 Proc', value: sensors.gpuTemp.gpu1Proc.value, health: sensors.gpuTemp.gpu1Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU2 Proc', value: sensors.gpuTemp.gpu2Proc.value, health: sensors.gpuTemp.gpu2Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU3 Proc', value: sensors.gpuTemp.gpu3Proc.value, health: sensors.gpuTemp.gpu3Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU4 Proc', value: sensors.gpuTemp.gpu4Proc.value, health: sensors.gpuTemp.gpu4Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU5 Proc', value: sensors.gpuTemp.gpu5Proc.value, health: sensors.gpuTemp.gpu5Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU6 Proc', value: sensors.gpuTemp.gpu6Proc.value, health: sensors.gpuTemp.gpu6Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'GPU7 Proc', value: sensors.gpuTemp.gpu7Proc.value, health: sensors.gpuTemp.gpu7Proc.health, max: 100, warningThreshold: 85, criticalThreshold: 95 },
+        { label: 'HDD Temp', value: sensors.gpuTemp.hddTemp.value, health: sensors.gpuTemp.hddTemp.health, max: 60, warningThreshold: 50 },
+        { label: 'PDB Temp1', value: sensors.gpuTemp.pdbTemp1.value, health: sensors.gpuTemp.pdbTemp1.health, max: 60, warningThreshold: 50 },
+        { label: 'PDB Temp2', value: sensors.gpuTemp.pdbTemp2.value, health: sensors.gpuTemp.pdbTemp2.health, max: 60, warningThreshold: 50 },
       ]
     : [];
 
   const fanSensors = sensors
     ? [
-        { label: 'GPU Fan1/2', value: sensors.fanSpeed.gpuFan12, unit: 'RPM', max: 12000, warningThreshold: 10000 },
-        { label: 'GPU Fan5/6', value: sensors.fanSpeed.gpuFan56, unit: 'RPM', max: 12000, warningThreshold: 10000 },
-        { label: 'SYS Fan1', value: sensors.fanSpeed.sysFan1, unit: 'RPM', max: 8000, warningThreshold: 7000 },
-        { label: 'SYS Fan2', value: sensors.fanSpeed.sysFan2, unit: 'RPM', max: 8000, warningThreshold: 7000 },
-        { label: 'GPU Fan3/4', value: sensors.fanSpeed.gpuFan34, unit: 'RPM', max: 12000, warningThreshold: 10000 },
-        { label: 'GPU Fan7/8', value: sensors.fanSpeed.gpuFan78, unit: 'RPM', max: 12000, warningThreshold: 10000 },
-        { label: 'GPU Fan1/2E', value: sensors.fanSpeed.gpuFan12E, unit: 'RPM', max: 12000, warningThreshold: 10000 },
-        { label: 'GPU Fan5/6E', value: sensors.fanSpeed.gpuFan56E, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'GPU Fan1/2', value: sensors.fanSpeed.gpuFan12.value, health: sensors.fanSpeed.gpuFan12.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'GPU Fan5/6', value: sensors.fanSpeed.gpuFan56.value, health: sensors.fanSpeed.gpuFan56.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'SYS Fan1', value: sensors.fanSpeed.sysFan1.value, health: sensors.fanSpeed.sysFan1.health, unit: 'RPM', max: 8000, warningThreshold: 7000 },
+        { label: 'SYS Fan2', value: sensors.fanSpeed.sysFan2.value, health: sensors.fanSpeed.sysFan2.health, unit: 'RPM', max: 8000, warningThreshold: 7000 },
+        { label: 'GPU Fan3/4', value: sensors.fanSpeed.gpuFan34.value, health: sensors.fanSpeed.gpuFan34.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'GPU Fan7/8', value: sensors.fanSpeed.gpuFan78.value, health: sensors.fanSpeed.gpuFan78.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'GPU Fan1/2E', value: sensors.fanSpeed.gpuFan12E.value, health: sensors.fanSpeed.gpuFan12E.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
+        { label: 'GPU Fan5/6E', value: sensors.fanSpeed.gpuFan56E.value, health: sensors.fanSpeed.gpuFan56E.health, unit: 'RPM', max: 12000, warningThreshold: 10000 },
       ]
     : [];
 
@@ -138,7 +136,7 @@ export default function BMCDetail() {
         smooth: true,
         symbol: 'none',
         areaStyle: { opacity: 0.1 },
-        data: generateHistoryData(sensors?.coreTemp.cpu0Temp, 60),
+        data: generateHistoryData(sensors?.coreTemp.cpu0Temp.value, 60),
       },
     ],
   };
@@ -291,10 +289,10 @@ export default function BMCDetail() {
               sensors={
                 sensors
                   ? [
-                      { label: 'CPU0 VCore', value: sensors.voltage.cpu0Vcore, unit: 'V', max: 2.5 },
-                      { label: 'CPU0 VCCin', value: sensors.voltage.cpu0Vccin, unit: 'V', max: 2.5 },
-                      { label: 'DIMMG0 Volt', value: sensors.voltage.dimmG0Volt, unit: 'V', max: 1.5 },
-                      { label: 'DIMMG1 Volt', value: sensors.voltage.dimmG1Volt, unit: 'V', max: 1.5 },
+                      { label: 'CPU0 VCore', value: sensors.voltage.cpu0Vcore.value, health: sensors.voltage.cpu0Vcore.health, unit: 'V', max: 2.5 },
+                      { label: 'CPU0 VCCin', value: sensors.voltage.cpu0Vccin.value, health: sensors.voltage.cpu0Vccin.health, unit: 'V', max: 2.5 },
+                      { label: 'DIMMG0 Volt', value: sensors.voltage.dimmG0Volt.value, health: sensors.voltage.dimmG0Volt.health, unit: 'V', max: 1.5 },
+                      { label: 'DIMMG1 Volt', value: sensors.voltage.dimmG1Volt.value, health: sensors.voltage.dimmG1Volt.health, unit: 'V', max: 1.5 },
                     ]
                   : []
               }
@@ -307,13 +305,13 @@ export default function BMCDetail() {
               sensors={
                 sensors
                   ? [
-                      { label: '12V Rail', value: sensors.voltage.volt12v, unit: 'V', max: 15 },
-                      { label: '5V Rail', value: sensors.voltage.volt5v, unit: 'V', max: 6 },
-                      { label: '3.3V Rail', value: sensors.voltage.volt3v3, unit: 'V', max: 4 },
-                      { label: 'CPU0 Curr', value: sensors.current.cpu0Current, unit: 'A', max: 60 },
-                      { label: 'DIMMG0 Curr', value: sensors.current.dimmG0Current, unit: 'A', max: 10 },
-                      { label: 'DIMMG1 Curr', value: sensors.current.dimmG1Current, unit: 'A', max: 10 },
-                      { label: 'GPU0 Curr', value: sensors.current.gpu0Current, unit: 'A', max: 80 },
+                      { label: '12V Rail', value: sensors.voltage.volt12v.value, health: sensors.voltage.volt12v.health, unit: 'V', max: 15 },
+                      { label: '5V Rail', value: sensors.voltage.volt5v.value, health: sensors.voltage.volt5v.health, unit: 'V', max: 6 },
+                      { label: '3.3V Rail', value: sensors.voltage.volt3v3.value, health: sensors.voltage.volt3v3.health, unit: 'V', max: 4 },
+                      { label: 'CPU0 Curr', value: sensors.current.cpu0Current.value, health: sensors.current.cpu0Current.health, unit: 'A', max: 60 },
+                      { label: 'DIMMG0 Curr', value: sensors.current.dimmG0Current.value, health: sensors.current.dimmG0Current.health, unit: 'A', max: 10 },
+                      { label: 'DIMMG1 Curr', value: sensors.current.dimmG1Current.value, health: sensors.current.dimmG1Current.health, unit: 'A', max: 10 },
+                      { label: 'GPU0 Curr', value: sensors.current.gpu0Current.value, health: sensors.current.gpu0Current.health, unit: 'A', max: 80 },
                     ]
                   : []
               }

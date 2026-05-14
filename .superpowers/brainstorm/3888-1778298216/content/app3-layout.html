@@ -1,0 +1,46 @@
+<h2>App3：BMC 监控与分析 — 页面结构方案</h2>
+<p class="subtitle">左侧面板：监控/日志/查询 三个模块切换 | 右侧：内容区</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">方案 A：标签页切换</div>
+    <div class="mockup-body">
+      <div class="mock-nav">异常分析 | 日志分析 | BMC 查询</div>
+      <div style="padding:12px;background:#f6ffed;border-radius:6px;min-height:120px">
+        <span style="font-size:12px;color:#666">当前标签页内容</span>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">方案 B：左侧导航 + 右侧内容</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:12px">
+        <div class="mock-sidebar" style="min-height:120px">
+          异常分析<br><span style="font-size:10px;color:#999">● 已选中</span><br><br>
+          日志分析<br><br>
+          BMC 查询
+        </div>
+        <div class="mock-content" style="flex:1;min-height:120px;background:#f6ffed;border-radius:6px">
+          <span style="font-size:12px;color:#666">当前模块内容</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>顶部标签页</h3>
+      <p>类似浏览器 Tab，三个模块各一页。简单，适合模块内容差异大的场景</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>左侧导航</h3>
+      <p>垂直菜单切换模块，空间利用率高，与 App1 的双栏布局呼应</p>
+    </div>
+  </div>
+</div>

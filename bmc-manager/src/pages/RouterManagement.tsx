@@ -27,7 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useRouterList } from '../hooks/useRouterList';
 import { useBMCList, useDeleteBMC } from '../hooks/useBMCList';
-import BMCStatusBadge from '../components/BMCStatusBadge';
+import BMCStatusBadge from '@shared/components/BMCStatusBadge';
 import BMCAddForm from '../components/BMCAddForm';
 import type { BMC, Router } from '../types';
 
@@ -86,6 +86,7 @@ export default function RouterManagement() {
   // 统计
   const onlineCount = bmcs?.filter((b) => b.status === 'online').length ?? 0;
   const offlineCount = bmcs?.filter((b) => b.status === 'offline').length ?? 0;
+  const warningCount = bmcs?.filter((b) => b.status === 'warning').length ?? 0;
   const errorCount = bmcs?.filter((b) => b.status === 'error').length ?? 0;
   const totalCount = bmcs?.length ?? 0;
 
@@ -128,7 +129,7 @@ export default function RouterManagement() {
       width: 140,
       sorter: (a, b) => a.uptime - b.uptime,
       render: (t: number, record: BMC) =>
-        record.status === 'online' ? formatUptime(t) : '-',
+        (record.status === 'online' || record.status === 'warning') ? formatUptime(t) : '-',
     },
     {
       title: '操作',
@@ -230,6 +231,7 @@ export default function RouterManagement() {
                 <Space size={4} style={{ fontSize: 13, fontWeight: 400 }}>
                   <Tag color="success">在线 {onlineCount}</Tag>
                   <Tag color="default">离线 {offlineCount}</Tag>
+                  <Tag color="warning">警告 {warningCount}</Tag>
                   <Tag color="error">异常 {errorCount}</Tag>
                 </Space>
               )}
@@ -253,6 +255,7 @@ export default function RouterManagement() {
                   { label: '全部', value: 'all' },
                   { label: '在线', value: 'online' },
                   { label: '离线', value: 'offline' },
+                  { label: '警告', value: 'warning' },
                   { label: '异常', value: 'error' },
                 ]}
               />

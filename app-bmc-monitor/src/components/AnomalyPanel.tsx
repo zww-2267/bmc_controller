@@ -16,28 +16,18 @@ interface AnomalyItem {
 }
 
 function analyzeAnomaly(s: SensorSummary): AnomalyItem | null {
-  if (!s.hasError && s.status !== 'error') return null;
-  const reasons: string[] = [];
+  if (s.health.level === 'normal' && s.status !== 'error') return null;
+
+  const reasons: string[] = [...s.health.reasons];
   let severity: 'critical' | 'warning' = 'warning';
 
-  if (s.cpu0Temp !== null && s.cpu0Temp > 85) {
-    reasons.push(`CPU0 温度过高: ${s.cpu0Temp}°C (阈值 85°C)`);
-    severity = 'critical';
-  } else if (s.cpu0Temp !== null && s.cpu0Temp > 75) {
-    reasons.push(`CPU0 温度偏高: ${s.cpu0Temp}°C (阈值 75°C)`);
-  }
-  if (s.inletAirTemp !== null && s.inletAirTemp > 35) {
-    reasons.push(`进风口温度过高: ${s.inletAirTemp}°C (阈值 35°C)`);
-  }
-  if (s.chassisPower > 1000) {
-    reasons.push(`整机功耗过高: ${s.chassisPower}W`);
-  }
+  if (s.health.level === 'critical') severity = 'critical';
   if (s.status === 'error') {
-    reasons.push('BMC 状态异常 (error)');
+    reasons.push('BMC 连接异常');
     severity = 'critical';
   }
   if (reasons.length === 0) {
-    reasons.push('传感器数据异常 (hasError)');
+    reasons.push('传感器数据异常');
   }
 
   return {

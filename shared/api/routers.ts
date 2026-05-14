@@ -10,6 +10,6 @@ export async function createRouter(input: Omit<Router, 'id'>): Promise<Router> {
   return { ...input, id: `r-${Date.now()}` };
 }
 
-export async function deleteRouter(id: string): Promise<{ success: boolean }> {
+export async function deleteRouter(_id: string): Promise<{ success: boolean }> {
   return { success: true };
 }

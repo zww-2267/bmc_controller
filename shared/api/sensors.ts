@@ -19,10 +19,10 @@ export async function fetchAllSensorSummaries(): Promise<SensorSummary[]> {
           bmcIp: bmc.ip,
           routerName: router.name,
           status: bmc.status,
-          cpu0Temp: sensors.coreTemp?.cpu0Temp ?? null,
-          inletAirTemp: sensors.coreTemp?.inletAirTemp ?? null,
+          cpu0Temp: sensors.coreTemp?.cpu0Temp?.value ?? null,
+          inletAirTemp: sensors.coreTemp?.inletAirTemp?.value ?? null,
           chassisPower: sensors.power?.chassisPower ?? 0,
-          hasError: bmc.status !== 'online' || (sensors.power?.chassisPowerHealth === 'Critical'),
+          health: bmc.aggregateHealth ?? { level: 'normal', reasons: [] },
           timestamp: sensors.timestamp,
         });
       } catch {
@@ -30,11 +30,11 @@ export async function fetchAllSensorSummaries(): Promise<SensorSummary[]> {
           bmcId: bmc.id,
           bmcIp: bmc.ip,
           routerName: router.name,
-          status: 'offline',
+          status: 'error',
           cpu0Temp: null,
           inletAirTemp: null,
           chassisPower: 0,
-          hasError: true,
+          health: { level: 'critical', reasons: ['BMC 无法连接'] },
           timestamp: new Date().toISOString(),
         });
       }
@@ -48,7 +48,7 @@ export async function fetchCpuTempHistory(bmcId: string, _minutes?: number): Pro
   return {
     bmcId,
     bmcIp: '',
-    points: [{ time: data.timestamp, value: data.coreTemp?.cpu0Temp ?? null }],
+    points: [{ time: data.timestamp, value: data.coreTemp?.cpu0Temp?.value ?? null }],
   };
 }
 

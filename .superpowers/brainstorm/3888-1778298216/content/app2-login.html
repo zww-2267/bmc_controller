@@ -1,0 +1,44 @@
+<h2>App2：BMC 详情 — 登录页流程</h2>
+<p class="subtitle">登录后才能进入 BMC 传感器详情</p>
+
+<div class="mockup">
+  <div class="mockup-header">登录流程：级联选择 + 凭据验证</div>
+  <div class="mockup-body" style="padding:20px">
+    <div style="max-width:400px;margin:0 auto">
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#8c8c8c;margin-bottom:4px">Step 1: 选择路由器</div>
+        <div class="placeholder" style="height:32px;border-radius:6px">下拉选择 — 6 台路由器</div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#8c8c8c;margin-bottom:4px">Step 2: 选择 BMC IP（根据路由器联动）</div>
+        <div class="placeholder" style="height:32px;border-radius:6px">下拉选择 — 过滤后的 BMC IP 列表</div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#8c8c8c;margin-bottom:4px">Step 3: 管理员账号</div>
+        <input class="mock-input" placeholder="admin">
+      </div>
+      <div style="margin-bottom:24px">
+        <div style="font-size:12px;color:#8c8c8c;margin-bottom:4px">Step 4: 管理员密码</div>
+        <input class="mock-input" placeholder="········" type="password">
+      </div>
+      <button class="mock-button">登 录</button>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Mock 验证</h3>
+      <p>任意账号密码均可登录，直接跳转到对应 BMC 详情页</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>固定凭据验证</h3>
+      <p>账号=admin，密码=admin123，验证通过才可进入（便于将来对接真实 BMC 认证）</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,58 @@
+<h2>架构拆分方案：1 → 3 应用</h2>
+<p class="subtitle">当前单体架构 vs 目标三应用架构</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前：单应用</div>
+    <div class="mockup-body">
+      <div class="mock-nav">AppLayout — 侧边栏 + 顶栏</div>
+      <div style="padding:12px;background:#f0f5ff;border-radius:6px;margin-bottom:8px">
+        <strong>/routers</strong> — RouterManagement<br>
+        <span style="font-size:12px;color:#666">选路由器 → BMC列表 → 增删 + 跳转详情</span>
+      </div>
+      <div style="padding:12px;background:#f0f5ff;border-radius:6px;margin-bottom:8px">
+        <strong>/bmc/:bmcId</strong> — BMCDetail<br>
+        <span style="font-size:12px;color:#666">传感器面板 + PSU + 开关机</span>
+      </div>
+      <div style="padding:12px;background:#f0f5ff;border-radius:6px">
+        <strong>/dashboard</strong> — Dashboard<br>
+        <span style="font-size:12px;color:#666">统计卡片 + 趋势图 + 异常列表</span>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#999">端口: 5173 | 1 Tauri App</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">目标：三独立应用</div>
+    <div class="mockup-body">
+      <div style="padding:12px;background:#fff7e6;border-radius:6px;margin-bottom:8px;border:1px solid #faad14">
+        <strong>App1: 路由器管理</strong><br>
+        <span style="font-size:12px;color:#666">BMC 增删 + Root 权限控制</span><br>
+        <span style="font-size:11px;color:#999">调试:5173 | Tauri App1</span>
+      </div>
+      <div style="padding:12px;background:#e6f7ff;border-radius:6px;margin-bottom:8px;border:1px solid #1677ff">
+        <strong>App2: BMC 详情</strong><br>
+        <span style="font-size:12px;color:#666">登录页 + 传感器面板 + Root 开关机</span><br>
+        <span style="font-size:11px;color:#999">调试:5174 | Tauri App2</span>
+      </div>
+      <div style="padding:12px;background:#f6ffed;border-radius:6px;border:1px solid #52c41a">
+        <strong>App3: BMC 监控与分析</strong><br>
+        <span style="font-size:12px;color:#666">异常分析 + 日志导入 + 查询跳转</span><br>
+        <span style="font-size:11px;color:#999">调试:5175 | Tauri App3</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:32px">关键问题</h3>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">Q1</div>
+    <div class="content">
+      <h3>共享代码的方式</h3>
+      <p>三个应用共享 types/api/mocks/hooks 层，各自有独立的 pages + components + vite 配置</p>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:16px;color:#666;font-size:14px">这个拆分方向对吗？准备好后我会开始逐应用细化方案。</p>

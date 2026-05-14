@@ -1,0 +1,74 @@
+<h2>三应用拆分 — 完整设计总结</h2>
+<p class="subtitle">请逐项确认以下设计</p>
+
+<div class="section">
+<h3>App1：路由器管理（端口 5173）</h3>
+<div style="display:flex;gap:12px">
+  <div style="flex:1;background:#fff7e6;border:1px solid #faad14;border-radius:8px;padding:12px">
+    <strong>布局</strong><br>
+    <span style="font-size:12px;color:#666">顶栏（frontend-design 设计）+ 左侧路由器列表 + 右侧 BMC 表</span>
+  </div>
+  <div style="flex:1;background:#fff7e6;border:1px solid #faad14;border-radius:8px;padding:12px">
+    <strong>Root 模式</strong><br>
+    <span style="font-size:12px;color:#666">按钮 → 密码 123456 → 会话解锁 → 增删按钮可用</span>
+  </div>
+  <div style="flex:1;background:#fff7e6;border:1px solid #faad14;border-radius:8px;padding:12px">
+    <strong>限制</strong><br>
+    <span style="font-size:12px;color:#666">非 root 增删按钮置灰，IP 不可点击跳转</span>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>App2：BMC 详情（端口 5174）</h3>
+<div style="display:flex;gap:12px">
+  <div style="flex:1;background:#e6f7ff;border:1px solid #1677ff;border-radius:8px;padding:12px">
+    <strong>登录页</strong><br>
+    <span style="font-size:12px;color:#666">路由下拉 → IP 下拉联动 → 账号 admin → 密码 abc123..</span>
+  </div>
+  <div style="flex:1;background:#e6f7ff;border:1px solid #1677ff;border-radius:8px;padding:12px">
+    <strong>Root 控制</strong><br>
+    <span style="font-size:12px;color:#666">登录后默认非 root，Root 按钮密码 123456 解锁开关机</span>
+  </div>
+  <div style="flex:1;background:#e6f7ff;border:1px solid #1677ff;border-radius:8px;padding:12px">
+    <strong>详情页</strong><br>
+    <span style="font-size:12px;color:#666">传感器面板 + PSU + CPU 趋势图（内部不变）</span>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>App3：BMC 监控与分析（端口 5175）</h3>
+<div style="display:flex;gap:12px">
+  <div style="flex:1;background:#f6ffed;border:1px solid #52c41a;border-radius:8px;padding:12px">
+    <strong>异常分析</strong><br>
+    <span style="font-size:12px;color:#666">hasError + 传感器阈值综合判定，列出具体原因（如"CPU0 温度 92°C 超出阈值 80°C"），按严重度排序</span>
+  </div>
+  <div style="flex:1;background:#f6ffed;border:1px solid #52c41a;border-radius:8px;padding:12px">
+    <strong>日志分析</strong><br>
+    <span style="font-size:12px;color:#666">CSV/JSON 文件导入，Mock 阶段生成示例日志，展示异常时间线</span>
+  </div>
+  <div style="flex:1;background:#f6ffed;border:1px solid #52c41a;border-radius:8px;padding:12px">
+    <strong>BMC 查询</strong><br>
+    <span style="font-size:12px;color:#666">按 router+IP 搜索 → 跳转到 App2 (localhost:5174)</span>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>共享层</h3>
+<div style="display:flex;gap:12px">
+  <div style="flex:1;background:#f0f0f0;border-radius:8px;padding:12px">
+    <strong>types/</strong><br><span style="font-size:12px;color:#666">所有 TypeScript 接口</span>
+  </div>
+  <div style="flex:1;background:#f0f0f0;border-radius:8px;padding:12px">
+    <strong>api/ + hooks/</strong><br><span style="font-size:12px;color:#666">Mock API + React Query</span>
+  </div>
+  <div style="flex:1;background:#f0f0f0;border-radius:8px;padding:12px">
+    <strong>mocks/</strong><br><span style="font-size:12px;color:#666">Mock 数据生成</span>
+  </div>
+  <div style="flex:1;background:#f0f0f0;border-radius:8px;padding:12px">
+    <strong>stores/</strong><br><span style="font-size:12px;color:#666">Zustand（如需要）</span>
+  </div>
+</div>
+</div>

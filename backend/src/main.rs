@@ -4,8 +4,15 @@ mod redfish;
 mod handlers;
 
 use anyhow::Result;
-use axum::{routing::{get, post, delete}, Router};
+use axum::{
+    body::Body,
+    http::{header, Request, StatusCode},
+    response::{Html, IntoResponse, Response},
+    routing::{get, post, delete},
+    Router,
+};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use tower_http::cors::{CorsLayer, Any};
 use tokio::time::{sleep, Duration};
@@ -15,6 +22,37 @@ use crate::config::*;
 use crate::handlers::AppState;
 
 const CONFIG_PATH: &str = "config/bmcs.json";
+
+async fn serve_frontend(req: Request<Body>) -> Response {
+    let req_path = req.uri().path().trim_start_matches('/');
+    let file = Path::new("static").join(if req_path.is_empty() { "index.html" } else { req_path });
+
+    // Static asset with file extension → serve directly
+    if file.extension().is_some() && file.exists() {
+        let content = std::fs::read(&file).unwrap_or_default();
+        let ct = match file.extension().and_then(|e| e.to_str()) {
+            Some("html") => "text/html; charset=utf-8",
+            Some("js") => "application/javascript; charset=utf-8",
+            Some("css") => "text/css; charset=utf-8",
+            Some("json") => "application/json",
+            Some("png") => "image/png",
+            Some("svg") => "image/svg+xml",
+            Some("ico") => "image/x-icon",
+            Some("woff2") => "font/woff2",
+            _ => "application/octet-stream",
+        };
+        return ([(header::CONTENT_TYPE, ct)], content).into_response();
+    }
+
+    // SPA fallback → index.html
+    match std::fs::read_to_string("static/index.html") {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => (
+            StatusCode::NOT_FOUND,
+            "Frontend not built — missing static/index.html",
+        ).into_response(),
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,10 +91,15 @@ async fn main() -> Result<()> {
         .route("/api/bmcs", post(handlers::add_bmc))
         .route("/api/bmcs/{id}", delete(handlers::delete_bmc))
         .layer(cors)
-        .with_state(state);
+        .with_state(state)
+        .fallback(serve_frontend);
 
-    println!("[*] Backend server listening on http://0.0.0.0:3001");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await?;
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3001);
+    println!("[*] Backend server listening on http://0.0.0.0:{}", port);
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -73,7 +116,6 @@ async fn polling_loop(state: Arc<AppState>) {
         };
 
         for (bmc_id, ip, user, pass) in &bmcs {
-            // Release write guard before await — parking_lot guards are not Send
             let needs_session = {
                 let sessions = state.sessions.read();
                 !sessions.contains_key(bmc_id)
@@ -101,7 +143,6 @@ async fn polling_loop(state: Arc<AppState>) {
                 }
             }
 
-            // Clone session so we don't hold the read guard across awaits
             let session = {
                 let sessions_guard = state.sessions.read();
                 match sessions_guard.get(bmc_id) {
@@ -149,23 +190,19 @@ async fn polling_loop(state: Arc<AppState>) {
                 }
             }
 
-            // 更新主机电源状态 (来自 Redfish Systems/Self PowerState)
             if let Ok((power_state, _uptime_secs)) = system_result {
                 let was_on = status_cache.host_power_on;
                 let now_on = power_state == "On";
 
                 if now_on && !was_on {
-                    // 主机刚开机
                     status_cache.host_power_on_since = now_secs();
                 } else if !now_on && was_on {
-                    // 主机刚关机：累计运行时间
                     let session_uptime = now_secs().saturating_sub(status_cache.host_power_on_since);
                     status_cache.host_uptime_accumulated = status_cache.host_uptime_accumulated.saturating_add(session_uptime);
                 }
                 status_cache.host_power_on = now_on;
             }
 
-            // BMC 连通性状态
             if thermal_ok || power_ok {
                 status_cache.consecutive_failures = 0;
                 status_cache.bmc_reachable = true;
@@ -176,6 +213,7 @@ async fn polling_loop(state: Arc<AppState>) {
                 }
             }
 
+            sensor_cache.compute_aggregate_health();
             sensor_cache.last_updated = now_secs();
         }
 

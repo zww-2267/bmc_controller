@@ -56,6 +56,10 @@ pub struct BmcListItem {
     #[serde(rename = "lastSeen")]
     pub last_seen: String,
     pub uptime: u64,
+    #[serde(rename = "hostPowerOn")]
+    pub host_power_on: bool,
+    #[serde(rename = "aggregateHealth")]
+    pub aggregate_health: serde_json::Value,
 }
 
 #[derive(Serialize)]
@@ -73,7 +77,14 @@ pub struct SensorDataResponse {
     pub current: serde_json::Value,
     pub power: serde_json::Value,
     pub psu: Vec<serde_json::Value>,
+    #[serde(rename = "aggregateHealth")]
+    pub aggregate_health: serde_json::Value,
 }
+
+const STATUS_ERROR: &str = "error";
+const STATUS_OFFLINE: &str = "offline";
+const STATUS_WARNING: &str = "warning";
+const STATUS_ONLINE: &str = "online";
 
 pub async fn login(Json(req): Json<LoginRequest>) -> Result<Json<serde_json::Value>, StatusCode> {
     if req.username == "admin" && req.password == "abc123.." {
@@ -107,6 +118,7 @@ pub async fn get_bmcs(
 
     let bmcs: Vec<BmcListItem> = router.bmcs.iter().map(|b| {
         let status_cache = cache.statuses.get(&b.id);
+        let sensor_cache = cache.sensors.get(&b.id);
         let host_on = status_cache.map(|s| s.host_power_on).unwrap_or(false);
         let uptime = status_cache.map(|s| {
             if s.host_power_on {
@@ -116,7 +128,15 @@ pub async fn get_bmcs(
             }
         }).unwrap_or(0);
         let bmc_reachable = status_cache.map(|s| s.bmc_reachable).unwrap_or(false);
-        let status = if host_on { "online" } else if bmc_reachable { "offline" } else { "error" };
+        let agg_health = sensor_cache.map(|sc| &sc.aggregate_health);
+        let status = if !bmc_reachable { STATUS_ERROR }
+            else if !host_on { STATUS_OFFLINE }
+            else if agg_health.map(|h| h.level >= SensorHealthLevel::Warning).unwrap_or(false) { STATUS_WARNING }
+            else { STATUS_ONLINE };
+        let aggregate_health = agg_health.map(|h| serde_json::json!({
+            "level": h.level,
+            "reasons": h.reasons,
+        })).unwrap_or(serde_json::json!({"level": "normal", "reasons": []}));
         BmcListItem {
             id: b.id.clone(),
             ip: b.ip.clone(),
@@ -126,6 +146,8 @@ pub async fn get_bmcs(
             status: status.to_string(),
             last_seen: chrono::Utc::now().to_rfc3339(),
             uptime,
+            host_power_on: host_on,
+            aggregate_health,
         }
     }).collect();
 
@@ -152,7 +174,16 @@ pub async fn get_bmc_status(
             s.host_uptime_accumulated
         }
     }).unwrap_or(0);
-    let status = if host_on { "online" } else if bmc_reachable { "offline" } else { "error" };
+    let sensor_cache = cache.sensors.get(&bmc_id);
+    let agg_health = sensor_cache.map(|sc| &sc.aggregate_health);
+    let status = if !bmc_reachable { STATUS_ERROR }
+        else if !host_on { STATUS_OFFLINE }
+        else if agg_health.map(|h| h.level >= SensorHealthLevel::Warning).unwrap_or(false) { STATUS_WARNING }
+        else { STATUS_ONLINE };
+    let aggregate_health = agg_health.map(|h| serde_json::json!({
+        "level": h.level,
+        "reasons": h.reasons,
+    })).unwrap_or(serde_json::json!({"level": "normal", "reasons": []}));
 
     Ok(Json(serde_json::json!({
         "id": bmc_id,
@@ -163,13 +194,20 @@ pub async fn get_bmc_status(
         "status": status,
         "lastSeen": chrono::Utc::now().to_rfc3339(),
         "uptime": uptime,
+        "hostPowerOn": host_on,
+        "aggregateHealth": aggregate_health,
     })))
 }
 
-fn sensor_value(name: &str, list: &[SensorReading]) -> Option<f64> {
+fn sensor_with_health(name: &str, list: &[SensorReading]) -> serde_json::Value {
     let upper = name.to_uppercase();
-    list.iter().find(|s| s.name.to_uppercase().contains(&upper))
-        .and_then(|s| s.value)
+    match list.iter().find(|s| s.name.to_uppercase().contains(&upper)) {
+        Some(s) => serde_json::json!({
+            "value": s.value,
+            "health": s.health,
+        }),
+        None => serde_json::json!({"value": null, "health": null}),
+    }
 }
 
 pub async fn get_bmc_sensors(
@@ -187,59 +225,59 @@ pub async fn get_bmc_sensors(
     let volts = &sensor_cache.voltages;
 
     let core_temp = serde_json::json!({
-        "cpu0Temp": sensor_value("CPU0_TEMP", temps),
-        "dimmG0Temp": sensor_value("DIMMG0_TEMP", temps),
-        "dimmG1Temp": sensor_value("DIMMG1_TEMP", temps),
-        "mbTemp1": sensor_value("MB_TEMP1", temps),
-        "mbTemp2": sensor_value("MB_TEMP2", temps),
-        "inletAirTemp": sensor_value("INLET_AIR_TEMP", temps),
-        "cpu0Dts": sensor_value("CPU0_DTS", temps),
-        "vrP0Temp": sensor_value("VR_P0_TEMP", temps),
-        "vrDimmG0Temp": sensor_value("VR_DIMMG0_TEMP", temps),
-        "vrDimmG1Temp": sensor_value("VR_DIMMG1_TEMP", temps),
-        "m2G0AmbTemp": sensor_value("M2_G0_AMB_TEMP", temps),
+        "cpu0Temp": sensor_with_health("CPU0_TEMP", temps),
+        "dimmG0Temp": sensor_with_health("DIMMG0_TEMP", temps),
+        "dimmG1Temp": sensor_with_health("DIMMG1_TEMP", temps),
+        "mbTemp1": sensor_with_health("MB_TEMP1", temps),
+        "mbTemp2": sensor_with_health("MB_TEMP2", temps),
+        "inletAirTemp": sensor_with_health("INLET_AIR_TEMP", temps),
+        "cpu0Dts": sensor_with_health("CPU0_DTS", temps),
+        "vrP0Temp": sensor_with_health("VR_P0_TEMP", temps),
+        "vrDimmG0Temp": sensor_with_health("VR_DIMMG0_TEMP", temps),
+        "vrDimmG1Temp": sensor_with_health("VR_DIMMG1_TEMP", temps),
+        "m2G0AmbTemp": sensor_with_health("M2_G0_AMB_TEMP", temps),
     });
 
     let gpu_temp = serde_json::json!({
-        "gpu0Proc": sensor_value("GPU0_PROC", temps),
-        "gpu1Proc": sensor_value("GPU1_PROC", temps),
-        "gpu2Proc": sensor_value("GPU2_PROC", temps),
-        "gpu3Proc": sensor_value("GPU3_PROC", temps),
-        "gpu4Proc": sensor_value("GPU4_PROC", temps),
-        "gpu5Proc": sensor_value("GPU5_PROC", temps),
-        "gpu6Proc": sensor_value("GPU6_PROC", temps),
-        "gpu7Proc": sensor_value("GPU7_PROC", temps),
-        "hddTemp": sensor_value("HDD_TEMP", temps),
-        "pdbTemp1": sensor_value("PDB_TEMP1", temps),
-        "pdbTemp2": sensor_value("PDB_TEMP2", temps),
+        "gpu0Proc": sensor_with_health("GPU0_PROC", temps),
+        "gpu1Proc": sensor_with_health("GPU1_PROC", temps),
+        "gpu2Proc": sensor_with_health("GPU2_PROC", temps),
+        "gpu3Proc": sensor_with_health("GPU3_PROC", temps),
+        "gpu4Proc": sensor_with_health("GPU4_PROC", temps),
+        "gpu5Proc": sensor_with_health("GPU5_PROC", temps),
+        "gpu6Proc": sensor_with_health("GPU6_PROC", temps),
+        "gpu7Proc": sensor_with_health("GPU7_PROC", temps),
+        "hddTemp": sensor_with_health("HDD_TEMP", temps),
+        "pdbTemp1": sensor_with_health("PDB_TEMP1", temps),
+        "pdbTemp2": sensor_with_health("PDB_TEMP2", temps),
     });
 
     let fan_speed = serde_json::json!({
-        "gpuFan12": sensor_value("GPU_FAN12", fans).or_else(|| sensor_value("GPU_FAN12E", fans)),
-        "gpuFan56": sensor_value("GPU_FAN56", fans).or_else(|| sensor_value("GPU_FAN56E", fans)),
-        "sysFan1": sensor_value("SYS_FAN1", fans),
-        "sysFan2": sensor_value("SYS_FAN2", fans),
-        "gpuFan34": sensor_value("GPU_FAN34", fans),
-        "gpuFan78": sensor_value("GPU_FAN78", fans),
-        "gpuFan12E": sensor_value("GPU_FAN12E", fans),
-        "gpuFan56E": sensor_value("GPU_FAN56E", fans),
+        "gpuFan12": sensor_with_health("GPU_FAN12", fans),
+        "gpuFan56": sensor_with_health("GPU_FAN56", fans),
+        "sysFan1": sensor_with_health("SYS_FAN1", fans),
+        "sysFan2": sensor_with_health("SYS_FAN2", fans),
+        "gpuFan34": sensor_with_health("GPU_FAN34", fans),
+        "gpuFan78": sensor_with_health("GPU_FAN78", fans),
+        "gpuFan12E": sensor_with_health("GPU_FAN12E", fans),
+        "gpuFan56E": sensor_with_health("GPU_FAN56E", fans),
     });
 
     let voltage = serde_json::json!({
-        "cpu0Vcore": sensor_value("P0_VDDCR_CPU", volts),
-        "cpu0Vccin": sensor_value("P0_VDD_18", volts),
-        "dimmG0Volt": sensor_value("VR_DIMMG0_VOUT", volts),
-        "dimmG1Volt": sensor_value("VR_DIMMG1_VOUT", volts),
-        "volt12v": sensor_value("P_12V", volts),
-        "volt5v": sensor_value("P_5V", volts),
-        "volt3v3": sensor_value("P_3V3", volts),
+        "cpu0Vcore": sensor_with_health("P0_VDDCR_CPU", volts),
+        "cpu0Vccin": sensor_with_health("P0_VDD_18", volts),
+        "dimmG0Volt": sensor_with_health("VR_DIMMG0_VOUT", volts),
+        "dimmG1Volt": sensor_with_health("VR_DIMMG1_VOUT", volts),
+        "volt12v": sensor_with_health("P_12V", volts),
+        "volt5v": sensor_with_health("P_5V", volts),
+        "volt3v3": sensor_with_health("P_3V3", volts),
     });
 
     let current = serde_json::json!({
-        "cpu0Current": sensor_value("VR_P0_IOUT", volts),
-        "dimmG0Current": sensor_value("VR_DIMMG0_IOUT", volts),
-        "dimmG1Current": sensor_value("VR_DIMMG1_IOUT", volts),
-        "gpu0Current": sensor_value("12V_GPU0", volts),
+        "cpu0Current": sensor_with_health("VR_P0_IOUT", volts),
+        "dimmG0Current": sensor_with_health("VR_DIMMG0_IOUT", volts),
+        "dimmG1Current": sensor_with_health("VR_DIMMG1_IOUT", volts),
+        "gpu0Current": sensor_with_health("12V_GPU0", volts),
     });
 
     let power = if let Some(pc) = sensor_cache.power_controls.first() {
@@ -268,6 +306,11 @@ pub async fn get_bmc_sensors(
         })
     }).collect();
 
+    let aggregate_health = serde_json::json!({
+        "level": sensor_cache.aggregate_health.level,
+        "reasons": sensor_cache.aggregate_health.reasons,
+    });
+
     Ok(Json(SensorDataResponse {
         bmc_id,
         timestamp: chrono::Utc::now().to_rfc3339(),
@@ -278,6 +321,7 @@ pub async fn get_bmc_sensors(
         current,
         power,
         psu,
+        aggregate_health,
     }))
 }
 
@@ -362,9 +406,11 @@ pub async fn add_bmc(
         username: bmc.username.clone(),
         router_id: req.router_id.clone(),
         router_name: router.name.clone(),
-        status: "offline".to_string(),
+        status: STATUS_OFFLINE.to_string(),
         last_seen: chrono::Utc::now().to_rfc3339(),
         uptime: 0,
+        host_power_on: false,
+        aggregate_health: serde_json::json!({"level": "normal", "reasons": []}),
     };
 
     router.bmcs.push(bmc);

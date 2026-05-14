@@ -5,22 +5,13 @@ import type { ColumnsType } from 'antd/es/table';
 import { useRouterList } from '@shared/hooks/useRouterList';
 import { useBMCList } from '@shared/hooks/useBMCList';
 import type { BMC } from '@shared/types';
+import BMCStatusBadge from '@shared/components/BMCStatusBadge';
 
 function formatUptime(s: number): string {
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
   return [d > 0 ? `${d}天` : '', h > 0 ? `${h}时` : '', `${m}分`].filter(Boolean).join(' ');
-}
-
-function BMCStatusTag({ status }: { status: string }) {
-  const map: Record<string, { color: string; text: string }> = {
-    online: { color: 'success', text: '在线' },
-    offline: { color: 'default', text: '离线' },
-    error: { color: 'error', text: '异常' },
-  };
-  const cfg = map[status] || { color: 'default', text: status };
-  return <Tag color={cfg.color}>{cfg.text}</Tag>;
 }
 
 export default function BMCQuery() {
@@ -49,12 +40,12 @@ export default function BMCQuery() {
     },
     { title: '管理员', dataIndex: 'username', key: 'username', width: 100 },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 100,
-      render: (status: string) => <BMCStatusTag status={status} />,
+      title: '状态', dataIndex: 'status', key: 'status', width: 120,
+      render: (_: unknown, record: BMC) => <BMCStatusBadge status={record.status} showText />,
     },
     {
       title: '已运行时间', dataIndex: 'uptime', key: 'uptime', width: 120,
-      render: (t: number, record: BMC) => record.status === 'online' ? formatUptime(t) : '-',
+      render: (t: number, record: BMC) => (record.status === 'online' || record.status === 'warning') ? formatUptime(t) : '-',
     },
     {
       title: '操作', key: 'actions', width: 100,

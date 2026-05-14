@@ -1,4 +1,4 @@
-import type { BMC, BMCStatus } from '../types';
+import type { BMC, BMCStatus, AggregateHealthStatus } from '../types';
 import { mockRouters } from './routers';
 
 function randomIp(seed: number): string {
@@ -11,9 +11,18 @@ function randomIp(seed: number): string {
 
 function randomStatus(): BMCStatus {
   const r = Math.random();
-  if (r < 0.85) return 'online';
-  if (r < 0.95) return 'offline';
+  if (r < 0.80) return 'online';
+  if (r < 0.90) return 'offline';
+  if (r < 0.97) return 'warning';
   return 'error';
+}
+
+function randomAggHealth(status: BMCStatus): AggregateHealthStatus {
+  if (status === 'error') return { level: 'critical', reasons: ['BMC 无响应'] };
+  if (status === 'warning') return { level: 'warning', reasons: ['CPU0 温度偏高', '进风口温度过高'] };
+  if (status === 'offline') return { level: 'normal', reasons: [] };
+  if (Math.random() < 0.05) return { level: 'warning', reasons: ['传感器数据部分异常'] };
+  return { level: 'normal', reasons: [] };
 }
 
 // 生成大量 BMC 数据（默认 1200 台以模拟千台环境）
@@ -25,8 +34,8 @@ export function generateMockBMCs(count: number = 1200): BMC[] {
     const minutesAgo = Math.floor(Math.random() * 120);
     const lastSeen = new Date(Date.now() - minutesAgo * 60000).toISOString();
 
-    const uptime = status === 'online'
-      ? Math.floor(Math.random() * 30 * 24 * 3600) + 3600 // 1小时 ~ 30天
+    const uptime = status === 'online' || status === 'warning'
+      ? Math.floor(Math.random() * 30 * 24 * 3600) + 3600
       : 0;
 
     bmcs.push({
@@ -38,6 +47,8 @@ export function generateMockBMCs(count: number = 1200): BMC[] {
       status,
       lastSeen,
       uptime,
+      hostPowerOn: status === 'online' || status === 'warning',
+      aggregateHealth: randomAggHealth(status),
     });
   }
   return bmcs;

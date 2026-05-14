@@ -1,3 +1,16 @@
+// ========== 健康状态类型 ==========
+export type SensorHealthLevel = 'OK' | 'Warning' | 'Critical';
+
+export interface SensorValueWithHealth {
+  value: number | null;
+  health: SensorHealthLevel | null;
+}
+
+export interface AggregateHealthStatus {
+  level: 'normal' | 'warning' | 'critical';
+  reasons: string[];
+}
+
 // ========== 路由器 ==========
 export interface Router {
   id: string;
@@ -7,7 +20,7 @@ export interface Router {
 }
 
 // ========== BMC ==========
-export type BMCStatus = 'online' | 'offline' | 'error';
+export type BMCStatus = 'online' | 'offline' | 'warning' | 'error';
 
 export interface BMC {
   id: string;
@@ -16,8 +29,10 @@ export interface BMC {
   routerId: string;
   routerName?: string;
   status: BMCStatus;
-  lastSeen: string; // ISO datetime
-  uptime: number; // 已运行时间，单位秒
+  lastSeen: string;
+  uptime: number;
+  hostPowerOn: boolean;
+  aggregateHealth: AggregateHealthStatus;
 }
 
 export interface BMCCreateInput {
@@ -29,69 +44,67 @@ export interface BMCCreateInput {
 
 // ========== 传感器数据 ==========
 export interface CoreTemp {
-  cpu0Temp: number | null;
-  dimmG0Temp: number | null;
-  dimmG1Temp: number | null;
-  mbTemp1: number | null;
-  mbTemp2: number | null;
-  inletAirTemp: number | null;
-  cpu0Dts: number | null;
-  vrP0Temp: number | null;
-  vrDimmG0Temp: number | null;
-  vrDimmG1Temp: number | null;
-  m2G0AmbTemp: number | null;
+  cpu0Temp: SensorValueWithHealth;
+  dimmG0Temp: SensorValueWithHealth;
+  dimmG1Temp: SensorValueWithHealth;
+  mbTemp1: SensorValueWithHealth;
+  mbTemp2: SensorValueWithHealth;
+  inletAirTemp: SensorValueWithHealth;
+  cpu0Dts: SensorValueWithHealth;
+  vrP0Temp: SensorValueWithHealth;
+  vrDimmG0Temp: SensorValueWithHealth;
+  vrDimmG1Temp: SensorValueWithHealth;
+  m2G0AmbTemp: SensorValueWithHealth;
 }
 
 export interface GpuTemp {
-  gpu0Proc: number | null;
-  gpu1Proc: number | null;
-  gpu2Proc: number | null;
-  gpu3Proc: number | null;
-  gpu4Proc: number | null;
-  gpu5Proc: number | null;
-  gpu6Proc: number | null;
-  gpu7Proc: number | null;
-  hddTemp: number | null;
-  pdbTemp1: number | null;
-  pdbTemp2: number | null;
+  gpu0Proc: SensorValueWithHealth;
+  gpu1Proc: SensorValueWithHealth;
+  gpu2Proc: SensorValueWithHealth;
+  gpu3Proc: SensorValueWithHealth;
+  gpu4Proc: SensorValueWithHealth;
+  gpu5Proc: SensorValueWithHealth;
+  gpu6Proc: SensorValueWithHealth;
+  gpu7Proc: SensorValueWithHealth;
+  hddTemp: SensorValueWithHealth;
+  pdbTemp1: SensorValueWithHealth;
+  pdbTemp2: SensorValueWithHealth;
 }
 
 export interface FanSpeed {
-  gpuFan12: number | null;
-  gpuFan56: number | null;
-  sysFan1: number | null;
-  sysFan2: number | null;
-  gpuFan34: number | null;
-  gpuFan78: number | null;
-  gpuFan12E: number | null;
-  gpuFan56E: number | null;
+  gpuFan12: SensorValueWithHealth;
+  gpuFan56: SensorValueWithHealth;
+  sysFan1: SensorValueWithHealth;
+  sysFan2: SensorValueWithHealth;
+  gpuFan34: SensorValueWithHealth;
+  gpuFan78: SensorValueWithHealth;
+  gpuFan12E: SensorValueWithHealth;
+  gpuFan56E: SensorValueWithHealth;
 }
 
 export interface VoltageData {
-  // 核心电压 (CPU VRM/内存供电)
-  cpu0Vcore: number | null;
-  cpu0Vccin: number | null;
-  dimmG0Volt: number | null;
-  dimmG1Volt: number | null;
-  // 基础电压 (12V/5V/3.3V)
-  volt12v: number | null;
-  volt5v: number | null;
-  volt3v3: number | null;
+  cpu0Vcore: SensorValueWithHealth;
+  cpu0Vccin: SensorValueWithHealth;
+  dimmG0Volt: SensorValueWithHealth;
+  dimmG1Volt: SensorValueWithHealth;
+  volt12v: SensorValueWithHealth;
+  volt5v: SensorValueWithHealth;
+  volt3v3: SensorValueWithHealth;
 }
 
 export interface CurrentData {
-  cpu0Current: number | null;
-  dimmG0Current: number | null;
-  dimmG1Current: number | null;
-  gpu0Current: number | null;
+  cpu0Current: SensorValueWithHealth;
+  dimmG0Current: SensorValueWithHealth;
+  dimmG1Current: SensorValueWithHealth;
+  gpu0Current: SensorValueWithHealth;
 }
 
 export interface PSUInfo {
   name: string;
   model: string;
   serialNumber: string;
-  lastOutput: number; // W
-  lineInput: number; // VAC
+  lastOutput: number;
+  lineInput: number;
   health: string;
   state: string;
 }
@@ -112,6 +125,7 @@ export interface SensorData {
   current: CurrentData;
   power: PowerData;
   psu: PSUInfo[];
+  aggregateHealth: AggregateHealthStatus;
 }
 
 // ========== 传感器摘要（仪表盘用） ==========
@@ -123,7 +137,7 @@ export interface SensorSummary {
   cpu0Temp: number | null;
   inletAirTemp: number | null;
   chassisPower: number;
-  hasError: boolean;
+  health: AggregateHealthStatus;
   timestamp: string;
 }
 

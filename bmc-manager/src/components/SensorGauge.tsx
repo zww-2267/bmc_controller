@@ -1,9 +1,12 @@
+import type { SensorHealthLevel } from '../types';
+
 interface Props {
   label: string;
   value: number | null;
   unit?: string;
   warningThreshold?: number;
   criticalThreshold?: number;
+  health?: SensorHealthLevel | null;
 }
 
 export default function SensorValue({
@@ -12,7 +15,14 @@ export default function SensorValue({
   unit = '°C',
   warningThreshold = 80,
   criticalThreshold = 95,
+  health,
 }: Props) {
+  const healthColor =
+    health === 'Critical' ? '#ff4d4f' :
+    health === 'Warning' ? '#faad14' :
+    health === 'OK' ? '#52c41a' :
+    undefined;
+
   const color =
     value === null
       ? '#d9d9d9'
@@ -32,7 +42,18 @@ export default function SensorValue({
         borderBottom: '1px solid #f0f0f0',
       }}
     >
-      <span style={{ fontSize: 12, color: '#8c8c8c' }}>{label}</span>
+      <span style={{ fontSize: 12, color: '#8c8c8c', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {healthColor && (
+          <span style={{
+            display: 'inline-block',
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            backgroundColor: healthColor,
+          }} />
+        )}
+        {label}
+      </span>
       <span
         style={{
           fontSize: 14,

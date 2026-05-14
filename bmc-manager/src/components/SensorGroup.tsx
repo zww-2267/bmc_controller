@@ -1,5 +1,6 @@
 import { Card, Empty } from 'antd';
 import SensorValue from './SensorGauge';
+import type { SensorHealthLevel } from '../types';
 
 interface SensorItem {
   label: string;
@@ -8,6 +9,7 @@ interface SensorItem {
   max?: number;
   warningThreshold?: number;
   criticalThreshold?: number;
+  health?: SensorHealthLevel | null;
 }
 
 interface Props {
@@ -38,6 +40,7 @@ export default function SensorGroup({ title, sensors, extra }: Props) {
               unit={s.unit}
               warningThreshold={s.warningThreshold}
               criticalThreshold={s.criticalThreshold}
+              health={s.health}
             />
           ))}
         </div>
