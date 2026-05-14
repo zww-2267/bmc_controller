@@ -30,14 +30,17 @@ pub fn run() {
         .setup(|app| {
             let port = find_free_port();
 
-            let resource_dir = app.path().resource_dir()
-                .expect("failed to resolve resource_dir");
+            let exe_dir = std::env::current_exe()
+                .expect("failed to resolve exe path")
+                .parent()
+                .expect("failed to resolve exe parent dir")
+                .to_path_buf();
             let backend_name = if cfg!(target_os = "windows") {
                 format!("{}-backend.exe", env!("CARGO_PKG_NAME"))
             } else {
                 format!("{}-backend", env!("CARGO_PKG_NAME"))
             };
-            let backend_path = resource_dir.join(backend_name);
+            let backend_path = exe_dir.join(backend_name);
 
             let mut child = Command::new(&backend_path)
                 .env("PORT", port.to_string())
