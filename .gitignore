@@ -1,7 +1,7 @@
 # Rust / Tauri
-src-tauri/target/
-src-tauri/gen/
-src-tauri/binaries/bmc-backend*
+**/src-tauri/target/
+**/src-tauri/gen/
+**/src-tauri/binaries/bmc-backend*
 backend/target/
 Cargo.lock
 
