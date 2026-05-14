@@ -33,9 +33,9 @@ pub fn run() {
             let resource_dir = app.path().resource_dir()
                 .expect("failed to resolve resource_dir");
             let backend_name = if cfg!(target_os = "windows") {
-                "bmc-backend.exe"
+                format!("{}-backend.exe", env!("CARGO_PKG_NAME"))
             } else {
-                "bmc-backend"
+                format!("{}-backend", env!("CARGO_PKG_NAME"))
             };
             let backend_path = resource_dir.join(backend_name);
 

@@ -2,7 +2,7 @@
 target/
 **/src-tauri/target/
 **/src-tauri/gen/
-**/src-tauri/binaries/bmc-backend*
+**/src-tauri/binaries/bmc-*-backend*
 Cargo.lock
 
 # Node
