@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, App as AntApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import zhCN from 'antd/locale/zh_CN';
@@ -15,12 +15,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1677ff', borderRadius: 6 } }}>
         <AntApp>
-          <HashRouter>
+          <BrowserRouter>
             <Routes>
               <Route path="/login" element={<AdminLoginPage appTitle="BMC 路由器管理" appSubtitle="管理员登录" />} />
               <Route path="/*" element={<AuthGuard><RouterManagerPage /></AuthGuard>} />
             </Routes>
-          </HashRouter>
+          </BrowserRouter>
         </AntApp>
       </ConfigProvider>
     </QueryClientProvider>

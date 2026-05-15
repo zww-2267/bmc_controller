@@ -43,6 +43,7 @@ pub fn run() {
             let backend_path = exe_dir.join(backend_name);
 
             let mut child = Command::new(&backend_path)
+                .current_dir(&exe_dir)
                 .env("PORT", port.to_string())
                 .spawn()
                 .expect("Failed to start bmc-backend sidecar");

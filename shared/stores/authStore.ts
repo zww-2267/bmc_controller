@@ -7,6 +7,14 @@ interface AuthState {
   logout: () => void;
 }
 
+function safeStorage() {
+  try {
+    return sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -20,6 +28,9 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => set({ isLoggedIn: false }),
     }),
-    { name: 'auth-session', storage: createJSONStorage(() => sessionStorage) },
+    {
+      name: 'auth-session',
+      storage: createJSONStorage(() => safeStorage() ?? localStorage),
+    },
   ),
 );
