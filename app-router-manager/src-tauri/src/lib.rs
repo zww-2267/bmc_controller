@@ -3,6 +3,8 @@ use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 struct BackendProcess(Mutex<Option<Child>>);
 
@@ -42,10 +44,14 @@ pub fn run() {
             };
             let backend_path = exe_dir.join(backend_name);
 
-            let mut child = Command::new(&backend_path)
-                .current_dir(&exe_dir)
-                .env("PORT", port.to_string())
-                .spawn()
+            let mut cmd = Command::new(&backend_path);
+            cmd.current_dir(&exe_dir)
+                .env("PORT", port.to_string());
+            #[cfg(target_os = "windows")]
+            {
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            }
+            let mut child = cmd.spawn()
                 .expect("Failed to start bmc-backend sidecar");
 
             if !wait_for_backend(port, Duration::from_secs(10)) {
